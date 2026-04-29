@@ -1,0 +1,24 @@
+# ── Next.js ──
+.next/
+out/
+build/
+
+# ── Dependencias ──
+node_modules/
+
+# ── Variables de entorno (NUNCA subir a git) ──
+.env
+.env.local
+.env.*.local
+
+# ── Sistema operativo ──
+.DS_Store
+Thumbs.db
+
+# ── Logs ──
+*.log
+npm-debug.log*
+
+# ── TypeScript ──
+*.tsbuildinfo
+next-env.d.ts
