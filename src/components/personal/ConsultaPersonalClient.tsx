@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   CheckCircle, XCircle, AlertTriangle, FileText,
   Download, ChevronDown, ChevronUp, Search, Filter, Clock, Archive, Wrench,
+  FileSpreadsheet, QrCode, Square, CheckSquare,
 } from "lucide-react";
 import clsx from "clsx";
 import { createClient } from "@/lib/supabase/client";
@@ -54,7 +55,65 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
   // Corrección: modal para re-subir docs
   const [corrModal, setCorrModal] = useState<Personal | null>(null);
   const [corrLoading, setCorrLoading] = useState(false);
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
+  const [bulkModal, setBulkModal] = useState<"aprobar" | "rechazar" | null>(null);
+  const [bulkMotivo, setBulkMotivo] = useState("");
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [exportandoExcel, setExportandoExcel] = useState(false);
   const supabase = createClient();
+
+  const toggleSeleccion = (id: string) => {
+    setSeleccionados((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleTodos = () => {
+    const ids = filtrado.filter((p) => p.estado === "pendiente").map((p) => p.id);
+    const todosSeleccionados = ids.every((id) => seleccionados.has(id));
+    setSeleccionados((prev) => {
+      const next = new Set(prev);
+      todosSeleccionados ? ids.forEach((id) => next.delete(id)) : ids.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  const handleBulk = async () => {
+    if (!bulkModal || !seleccionados.size) return;
+    setBulkLoading(true);
+    try {
+      const res = await fetch("/api/personal/bulk", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(seleccionados), accion: bulkModal, motivo_rechazo: bulkMotivo }),
+      });
+      if (res.ok) {
+        const nuevoEstado = bulkModal === "aprobar" ? "aprobado" : "rechazado";
+        setLista((prev) => prev.map((p) => seleccionados.has(p.id) ? { ...p, estado: nuevoEstado as Personal["estado"] } : p));
+        setSeleccionados(new Set());
+      }
+    } finally { setBulkModal(null); setBulkMotivo(""); setBulkLoading(false); }
+  };
+
+  const exportarExcel = async () => {
+    setExportandoExcel(true);
+    try {
+      const params = new URLSearchParams({ tab });
+      if (filtroProveedor) params.set("proveedor_id", filtroProveedor);
+      if (filtroEstado) params.set("estado", filtroEstado);
+      const res = await fetch(`/api/export/personal?${params}`);
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `personal_${tab}_${new Date().toISOString().split("T")[0]}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally { setExportandoExcel(false); }
+  };
 
   const verDoc = async (url: string) => {
     if (url.startsWith("http")) { window.open(url, "_blank"); return; }
@@ -76,6 +135,22 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
     }
     return true;
   });
+
+  const exportarQR = async (p: Personal) => {
+    const QRCode = (await import("qrcode")).default;
+    const info = [
+      `Nombre: ${p.nombres}`,
+      `C.C.: ${p.cedula}`,
+      `Empresa: ${p.proveedor?.nombre ?? "-"}`,
+      `Estado: ${p.estado}`,
+      `Easy Kontrol`,
+    ].join("\n");
+    const dataUrl = await QRCode.toDataURL(info, { width: 300, margin: 2 });
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `QR_${p.cedula}.png`;
+    a.click();
+  };
 
   const handleAprobarRechazar = async () => {
     if (!modal) return;
@@ -179,7 +254,7 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
           <input type="text" placeholder="Buscar por nombre o cédula..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
             className="flex-1 text-[13px] border-none outline-none placeholder:text-gray-300" />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Filter size={13} className="text-gray-400" />
           {rol === "admin" && (
             <select value={filtroProveedor} onChange={(e) => setFiltroProveedor(e.target.value)}
@@ -196,8 +271,34 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
             <option value="rechazado">Rechazado</option>
             <option value="inactivo">Inactivo</option>
           </select>
+          <button onClick={exportarExcel} disabled={exportandoExcel}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-[12px] text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50">
+            <FileSpreadsheet size={13} className="text-green-600" />
+            {exportandoExcel ? "Exportando..." : "Excel"}
+          </button>
         </div>
       </div>
+
+      {/* Barra de acciones masivas */}
+      {rol === "admin" && seleccionados.size > 0 && (
+        <div className="bg-ek-50 border border-ek-200 rounded-xl px-4 py-3 flex items-center justify-between flex-wrap gap-3">
+          <span className="text-[13px] text-ek-700 font-medium">{seleccionados.size} persona(s) seleccionada(s)</span>
+          <div className="flex gap-2">
+            <button onClick={() => setBulkModal("aprobar")}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 text-white rounded-lg text-[12px] font-medium hover:bg-green-600 transition-colors">
+              <CheckCircle size={13} /> Aprobar todas
+            </button>
+            <button onClick={() => setBulkModal("rechazar")}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white rounded-lg text-[12px] font-medium hover:bg-red-600 transition-colors">
+              <XCircle size={13} /> Rechazar todas
+            </button>
+            <button onClick={() => setSeleccionados(new Set())}
+              className="px-3 py-1.5 border border-gray-200 rounded-lg text-[12px] text-gray-600 hover:bg-white transition-colors">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Lista */}
       <div className="space-y-2">
@@ -220,8 +321,13 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
 
           return (
             <div key={p.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                onClick={() => setExpandido(isOpen ? null : p.id)}>
+              <div className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
+              {rol === "admin" && p.estado === "pendiente" && (
+                <button onClick={() => toggleSeleccion(p.id)} className="mr-3 shrink-0 text-gray-400 hover:text-ek-600 transition-colors">
+                  {seleccionados.has(p.id) ? <CheckSquare size={16} className="text-ek-600" /> : <Square size={16} />}
+                </button>
+              )}
+              <div className="flex-1 cursor-pointer" onClick={() => setExpandido(isOpen ? null : p.id)}>
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="text-[14px] font-semibold text-gray-800">{p.nombres}</p>
@@ -253,6 +359,7 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
                   {isOpen ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
                 </div>
               </div>
+              </div>
 
               {isOpen && (
                 <div className="border-t border-gray-100 px-5 py-4 space-y-4">
@@ -271,7 +378,11 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
                   <div className="flex items-center gap-2 flex-wrap">
                     <button onClick={() => exportarPDF(p)}
                       className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-[12px] text-gray-600 hover:bg-gray-50 transition-colors">
-                      <Download size={13} /> Exportar PDF
+                      <Download size={13} /> PDF
+                    </button>
+                    <button onClick={() => exportarQR(p)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-[12px] text-gray-600 hover:bg-gray-50 transition-colors">
+                      <QrCode size={13} /> QR
                     </button>
 
                     {rol === "admin" && p.estado === "pendiente" && (
@@ -329,11 +440,40 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
             )}
             <div className="flex gap-3">
               <button onClick={() => { setModal(null); setMotivo(""); }} className="flex-1 py-2 border border-gray-200 rounded-lg text-[13px] text-gray-600 hover:bg-gray-50">Cancelar</button>
-              <button onClick={handleAprobarRechazar} disabled={modal.accion === "rechazar" && !motivo.trim()}
+              <button onClick={handleAprobarRechazar} disabled={!!loadingId || (modal.accion === "rechazar" && !motivo.trim())}
                 className={clsx("flex-1 py-2 rounded-lg text-[13px] font-semibold text-white disabled:opacity-50",
                   modal.accion === "aprobar" ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600"
                 )}>
                 {modal.accion === "aprobar" ? "Aprobar" : "Rechazar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal aprobación/rechazo masivo */}
+      {bulkModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
+            <h3 className="text-[15px] font-bold text-gray-800">
+              {bulkModal === "aprobar" ? `Aprobar ${seleccionados.size} persona(s)` : `Rechazar ${seleccionados.size} persona(s)`}
+            </h3>
+            {bulkModal === "rechazar" && (
+              <div>
+                <label className="block text-[12px] font-medium text-gray-600 mb-1">Motivo *</label>
+                <textarea value={bulkMotivo} onChange={(e) => setBulkMotivo(e.target.value)}
+                  placeholder="Motivo del rechazo..." rows={3}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-red-300 resize-none" />
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button onClick={() => { setBulkModal(null); setBulkMotivo(""); }}
+                className="flex-1 py-2 border border-gray-200 rounded-lg text-[13px] text-gray-600 hover:bg-gray-50">Cancelar</button>
+              <button onClick={handleBulk} disabled={bulkLoading || (bulkModal === "rechazar" && !bulkMotivo.trim())}
+                className={clsx("flex-1 py-2 rounded-lg text-[13px] font-semibold text-white disabled:opacity-50",
+                  bulkModal === "aprobar" ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600"
+                )}>
+                {bulkLoading ? "Procesando..." : "Confirmar"}
               </button>
             </div>
           </div>

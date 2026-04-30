@@ -5,6 +5,8 @@ import {
   Users, CheckCircle, Clock, AlertTriangle, Truck, Building2, UsersRound, Wrench, Archive,
 } from "lucide-react";
 import type { DashboardKPIs } from "@/types";
+import { ChartBarEstados } from "@/components/dashboard/ChartBarEstados";
+import { ChartAreaMes } from "@/components/dashboard/ChartAreaMes";
 
 function KPICard({ label, value, icon: Icon, color }: { label: string; value: number; icon: React.ElementType; color: string }) {
   return (
@@ -26,12 +28,30 @@ export default async function DashboardPage() {
   const { data: profile } = await supabase.from("profiles").select("rol").eq("id", session.user.id).single();
   const esAdmin = profile?.rol === "admin";
 
-  const { data: kpisData } = await supabase.rpc("get_dashboard_kpis");
+  const [{ data: kpisData }, { data: mesData }] = await Promise.all([
+    supabase.rpc("get_dashboard_kpis"),
+    supabase
+      .from("personal")
+      .select("created_at")
+      .gte("created_at", new Date(Date.now() - 180 * 86400000).toISOString()),
+  ]);
+
   const kpis: DashboardKPIs = kpisData ?? {
     total_personal: 0, personal_aprobado: 0, personal_pendiente: 0, personal_rechazado: 0,
     personal_en_correccion: 0, grupos_pendientes: 0, vehiculos_activos: 0, proveedores_activos: 0,
     documentos_por_vencer: 0, personal_historial: 0,
   };
+
+  const datosMes = (() => {
+    const conteo: Record<string, number> = {};
+    const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+    for (const p of mesData ?? []) {
+      const d = new Date(p.created_at);
+      const key = `${MESES[d.getMonth()]} ${d.getFullYear()}`;
+      conteo[key] = (conteo[key] ?? 0) + 1;
+    }
+    return Object.entries(conteo).map(([mes, total]) => ({ mes, total }));
+  })();
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -94,6 +114,26 @@ export default async function DashboardPage() {
           </div>
         </Link>
       )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-4">
+            Estado del personal
+          </p>
+          <ChartBarEstados
+            aprobado={kpis.personal_aprobado}
+            pendiente={kpis.personal_pendiente}
+            rechazado={kpis.personal_rechazado}
+            inactivo={kpis.personal_historial}
+          />
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-4">
+            Registros últimos 6 meses
+          </p>
+          <ChartAreaMes data={datosMes} />
+        </div>
+      </div>
     </div>
   );
 }

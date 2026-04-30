@@ -1,5 +1,6 @@
 import { Menu } from "lucide-react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 interface DashboardNavbarProps {
   email: string;
@@ -26,6 +27,7 @@ export function DashboardNavbar({ email, onMenuClick }: DashboardNavbarProps) {
         <span className="hidden sm:block text-[13px] text-gray-400 truncate max-w-[160px]">
           {email}
         </span>
+        <NotificationBell />
         <LogoutButton />
       </div>
     </nav>

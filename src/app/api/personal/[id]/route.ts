@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email";
+import { logAudit } from "@/lib/audit";
+import { crearNotificacion } from "@/lib/notifications";
 import { NextResponse } from "next/server";
 
 function htmlAprobacion(nombres: string, cedula: string, provNombre: string) {
@@ -97,6 +99,16 @@ export async function PATCH(
     updateData.en_correccion = false;
   }
 
+  const { data: current } = await supabase
+    .from("personal")
+    .select("estado")
+    .eq("id", params.id)
+    .single();
+
+  if (current?.estado === estado) {
+    return NextResponse.json({ error: "El personal ya se encuentra en ese estado" }, { status: 409 });
+  }
+
   const { data: updated, error } = await supabase
     .from("personal")
     .update(updateData)
@@ -105,6 +117,29 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logAudit({
+    user_id: session.user.id,
+    action: estado === "aprobado" ? "personal_aprobado" : "personal_rechazado",
+    entity_type: "personal",
+    entity_id: params.id,
+    metadata: { nombres: updated.nombres, cedula: updated.cedula, motivo_rechazo },
+  });
+
+  const { data: provProfile } = await createAdminClient()
+    .from("profiles")
+    .select("id")
+    .eq("proveedor_id", updated.proveedor_id)
+    .single();
+
+  if (provProfile) {
+    await crearNotificacion(
+      provProfile.id,
+      estado === "aprobado" ? "personal_aprobado" : "personal_rechazado",
+      `${updated.nombres} fue ${estado === "aprobado" ? "aprobado" : "rechazado"}.`,
+      { personal_id: params.id }
+    );
+  }
 
   // ── Enviar email ──────────────────────────────────────
   const destinatarios = new Set<string>();
