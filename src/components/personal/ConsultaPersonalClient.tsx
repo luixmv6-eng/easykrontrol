@@ -162,7 +162,7 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
         body: JSON.stringify({
           estado: modal.accion === "aprobar" ? "aprobado" : "rechazado",
           motivo_rechazo: modal.accion === "rechazar" ? motivo : undefined,
-          email_notificacion: modal.accion === "rechazar" && emailNotif.trim() ? emailNotif.trim() : undefined,
+          email_notificacion: emailNotif.trim() || undefined,
         }),
       });
       if (res.ok) {
@@ -387,11 +387,11 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
 
                     {rol === "admin" && p.estado === "pendiente" && (
                       <>
-                        <button disabled={!!loadingId} onClick={() => setModal({ id: p.id, accion: "aprobar" })}
+                        <button disabled={!!loadingId} onClick={() => { setModal({ id: p.id, accion: "aprobar" }); setEmailNotif(""); setMotivo(""); }}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 text-white rounded-lg text-[12px] font-medium hover:bg-green-600 transition-colors disabled:opacity-50">
                           <CheckCircle size={13} /> Aprobar
                         </button>
-                        <button disabled={!!loadingId} onClick={() => { setModal({ id: p.id, accion: "rechazar", proveedorEmail: p.proveedor?.email }); setMotivo(""); setEmailNotif(p.proveedor?.email ?? ""); }}
+                        <button disabled={!!loadingId} onClick={() => { setModal({ id: p.id, accion: "rechazar", proveedorEmail: p.proveedor?.email }); setMotivo(""); setEmailNotif(""); }}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white rounded-lg text-[12px] font-medium hover:bg-red-600 transition-colors disabled:opacity-50">
                           <XCircle size={13} /> Rechazar
                         </button>
@@ -424,20 +424,22 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
                 ? "¿Aprobar el ingreso? Se enviará notificación al proveedor."
                 : "Indica el motivo para notificar al proveedor."}
             </p>
-            {modal.accion === "rechazar" && (
-              <div className="space-y-3">
+            <div className="space-y-3">
+              {modal.accion === "rechazar" && (
                 <div>
                   <label className="block text-[12px] font-medium text-gray-600 mb-1">Motivo *</label>
                   <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Describe el motivo..." rows={3}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-red-300 resize-none" />
                 </div>
-                <div>
-                  <label className="block text-[12px] font-medium text-gray-600 mb-1">Correo adicional</label>
-                  <input type="email" value={emailNotif} onChange={(e) => setEmailNotif(e.target.value)} placeholder="correo@empresa.com"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-red-300" />
-                </div>
+              )}
+              <div>
+                <label className="block text-[12px] font-medium text-gray-600 mb-1">Correo adicional (opcional)</label>
+                <input type="email" value={emailNotif} onChange={(e) => setEmailNotif(e.target.value)} placeholder="Copia a otro correo..."
+                  className={clsx("w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2",
+                    modal.accion === "rechazar" ? "focus:ring-red-300" : "focus:ring-green-300"
+                  )} />
               </div>
-            )}
+            </div>
             <div className="flex gap-3">
               <button onClick={() => { setModal(null); setMotivo(""); }} className="flex-1 py-2 border border-gray-200 rounded-lg text-[13px] text-gray-600 hover:bg-gray-50">Cancelar</button>
               <button onClick={handleAprobarRechazar} disabled={!!loadingId || (modal.accion === "rechazar" && !motivo.trim())}

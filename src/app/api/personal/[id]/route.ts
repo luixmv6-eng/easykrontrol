@@ -143,18 +143,13 @@ export async function PATCH(
 
   // ── Enviar email ──────────────────────────────────────
   const destinatarios = new Set<string>();
-  const admin = createAdminClient();
 
-  const { data: usuarioVinculado } = await admin
-    .from("profiles")
-    .select("username")
-    .eq("proveedor_id", updated.proveedor_id)
-    .not("username", "is", null)
-    .limit(1)
-    .single();
-
-  if (usuarioVinculado?.username) destinatarios.add(usuarioVinculado.username);
-  if (updated.proveedor?.email) destinatarios.add(updated.proveedor.email);
+  // Obtener el email real del usuario vinculado al proveedor desde auth.users
+  if (provProfile?.id) {
+    const adminClient = createAdminClient();
+    const { data: authData } = await adminClient.auth.admin.getUserById(provProfile.id);
+    if (authData?.user?.email) destinatarios.add(authData.user.email);
+  }
   if (email_notificacion?.trim()) destinatarios.add(email_notificacion.trim());
 
   if (destinatarios.size > 0) {
