@@ -1,35 +1,37 @@
-// ══════════════════════════════════════════════════════
-// src/app/layout.tsx
-// Layout raíz de la aplicación (App Router de Next.js 14)
-// Aplica fuentes globales y metadatos SEO
-// ══════════════════════════════════════════════════════
-
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Nunito } from "next/font/google";
 import "./globals.css";
 
-// ── Configuración de la fuente Nunito (Google Fonts) ─
-// Next.js descarga y sirve la fuente localmente (sin petición a Google en runtime)
 const nunito = Nunito({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-nunito",   // CSS variable para usar en Tailwind
-  display: "swap",             // Evita el flash de texto invisible (FOIT)
+  variable: "--font-nunito",
+  display: "swap",
 });
 
-// ── Metadatos de la aplicación (SEO y PWA) ───────────
+export const viewport: Viewport = {
+  themeColor: "#7ab648",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
+
 export const metadata: Metadata = {
   title: "Easy Kontrol | Gestión de Proveedores",
-  description:
-    "Plataforma de gestión de proveedores para el sector agroindustrial",
+  description: "Plataforma de gestión de proveedores para el sector agroindustrial",
   keywords: ["proveedores", "gestión", "agroindustria", "caña de azúcar"],
-  // Icono de la pestaña del navegador
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Easy Kontrol",
+  },
   icons: {
-    icon: "/favicon.ico",
+    icon: "/icons/icon-192.svg",
+    apple: "/icons/icon-192.svg",
   },
 };
 
-// ── Layout raíz ──────────────────────────────────────
 export default function RootLayout({
   children,
 }: {
@@ -37,10 +39,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" className={nunito.variable}>
-      {/*
-       * La clase antialiased de Tailwind mejora el renderizado de fuentes
-       * font-sans usa la variable --font-nunito configurada arriba
-       */}
       <body className="antialiased font-sans bg-ek-50 min-h-screen">
         {children}
       </body>
