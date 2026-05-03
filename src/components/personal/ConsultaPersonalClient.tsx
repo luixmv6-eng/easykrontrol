@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   CheckCircle, XCircle, AlertTriangle, FileText,
   Download, ChevronDown, ChevronUp, Search, Filter, Clock, Archive, Wrench,
-  FileSpreadsheet, QrCode, Square, CheckSquare,
+  FileSpreadsheet, Square, CheckSquare,
 } from "lucide-react";
 import clsx from "clsx";
 import { createClient } from "@/lib/supabase/client";
@@ -135,22 +135,6 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
     }
     return true;
   });
-
-  const exportarQR = async (p: Personal) => {
-    const QRCode = (await import("qrcode")).default;
-    const info = [
-      `Nombre: ${p.nombres}`,
-      `C.C.: ${p.cedula}`,
-      `Empresa: ${p.proveedor?.nombre ?? "-"}`,
-      `Estado: ${p.estado}`,
-      `Easy Kontrol`,
-    ].join("\n");
-    const dataUrl = await QRCode.toDataURL(info, { width: 300, margin: 2 });
-    const a = document.createElement("a");
-    a.href = dataUrl;
-    a.download = `QR_${p.cedula}.png`;
-    a.click();
-  };
 
   const handleAprobarRechazar = async () => {
     if (!modal) return;
@@ -380,11 +364,6 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
                       className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-[12px] text-gray-600 hover:bg-gray-50 transition-colors">
                       <Download size={13} /> PDF
                     </button>
-                    <button onClick={() => exportarQR(p)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-[12px] text-gray-600 hover:bg-gray-50 transition-colors">
-                      <QrCode size={13} /> QR
-                    </button>
-
                     {rol === "admin" && p.estado === "pendiente" && (
                       <>
                         <button disabled={!!loadingId} onClick={() => { setModal({ id: p.id, accion: "aprobar" }); setEmailNotif(""); setMotivo(""); }}
