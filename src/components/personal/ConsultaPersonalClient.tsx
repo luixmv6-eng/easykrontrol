@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   CheckCircle, XCircle, AlertTriangle, FileText,
   Download, ChevronDown, ChevronUp, Search, Filter, Clock, Archive, Wrench,
-  FileSpreadsheet, Square, CheckSquare,
+  FileSpreadsheet, Square, CheckSquare, Upload, X as XIcon,
 } from "lucide-react";
 import clsx from "clsx";
 import { createClient } from "@/lib/supabase/client";
@@ -55,6 +55,8 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
   // Corrección: modal para re-subir docs
   const [corrModal, setCorrModal] = useState<Personal | null>(null);
   const [corrLoading, setCorrLoading] = useState(false);
+  const [corrFiles, setCorrFiles] = useState<Partial<Record<TipoDocumento, File>>>({});
+  const [corrFechas, setCorrFechas] = useState<Partial<Record<TipoDocumento, string>>>({});
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
   const [bulkModal, setBulkModal] = useState<"aprobar" | "rechazar" | null>(null);
   const [bulkMotivo, setBulkMotivo] = useState("");
@@ -156,10 +158,41 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
     } finally { setModal(null); setMotivo(""); setEmailNotif(""); setLoadingId(null); }
   };
 
+  const closeCorrModal = () => {
+    setCorrModal(null);
+    setCorrFiles({});
+    setCorrFechas({});
+  };
+
   const handleCorreccion = async () => {
     if (!corrModal) return;
+    const tiposSeleccionados = Object.keys(corrFiles) as TipoDocumento[];
+    if (tiposSeleccionados.length === 0) return;
+
     setCorrLoading(true);
     try {
+      for (const tipo of tiposSeleccionados) {
+        const file = corrFiles[tipo];
+        if (!file) continue;
+        const path = `${corrModal.id}/${tipo}.pdf`;
+
+        const { error: upError } = await supabase.storage
+          .from("documentos")
+          .upload(path, file, { upsert: true, contentType: "application/pdf" });
+        if (upError) continue;
+
+        await fetch(`/api/personal/${corrModal.id}/documentos`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tipo,
+            url: path,
+            nombre_archivo: file.name,
+            fecha_inicio_vigencia: corrFechas[tipo] ?? null,
+          }),
+        });
+      }
+
       const res = await fetch(`/api/personal/${corrModal.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -168,7 +201,7 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
       if (res.ok) {
         const { data } = await res.json();
         setLista((prev) => prev.map((p) => (p.id === data.id ? { ...p, ...data } : p)));
-        setCorrModal(null);
+        closeCorrModal();
       }
     } finally { setCorrLoading(false); }
   };
@@ -464,24 +497,146 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
       {/* Modal corrección proveedor */}
       {corrModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
-            <h3 className="text-[15px] font-bold text-gray-800">Corregir documentos</h3>
-            <p className="text-[13px] text-gray-500">
-              Al confirmar, el registro de <strong>{corrModal.nombres}</strong> regresará a estado <strong>Pendiente</strong> para una nueva revisión del administrador.
-            </p>
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-[15px] font-bold text-gray-800">Corregir documentos</h3>
+                <p className="text-[12px] text-gray-400 mt-0.5">{corrModal.nombres} · C.C. {corrModal.cedula}</p>
+              </div>
+              <button onClick={closeCorrModal} className="text-gray-400 hover:text-gray-600 transition-colors mt-0.5">
+                <XIcon size={18} />
+              </button>
+            </div>
+
             {corrModal.motivo_rechazo && (
               <div className="bg-red-50 border border-red-100 rounded-lg p-3">
-                <p className="text-[12px] text-red-600"><strong>Motivo de rechazo anterior:</strong> {corrModal.motivo_rechazo}</p>
+                <p className="text-[12px] text-red-600"><strong>Motivo de rechazo:</strong> {corrModal.motivo_rechazo}</p>
               </div>
             )}
-            <p className="text-[12px] text-gray-400">
-              Después de confirmar, ve a la sección de <strong>Registrar personal</strong> para subir los documentos corregidos con la misma cédula, o sube los archivos individualmente si el sistema lo permite.
+
+            <p className="text-[13px] text-gray-500">
+              Selecciona el o los documentos que deseas corregir y carga el nuevo archivo PDF.
             </p>
-            <div className="flex gap-3">
-              <button onClick={() => setCorrModal(null)} className="flex-1 py-2 border border-gray-200 rounded-lg text-[13px] text-gray-600 hover:bg-gray-50">Cancelar</button>
-              <button onClick={handleCorreccion} disabled={corrLoading}
+
+            {/* Documentos del personal */}
+            <div>
+              <p className="text-[12px] font-semibold text-gray-500 mb-2">Documentos del personal</p>
+              <div className="space-y-2">
+                {(["cedula", "licencia", "arl"] as TipoDocumento[]).map((tipo) => {
+                  const doc = corrModal.documentos?.find((d) => d.tipo === tipo);
+                  const fileSeleccionado = corrFiles[tipo];
+                  return (
+                    <div key={tipo} className={clsx("rounded-lg border p-3 transition-colors", fileSeleccionado ? "border-orange-200 bg-orange-50" : "border-gray-200")}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          {doc ? <CheckCircle size={13} className="text-green-600 shrink-0" /> : <XCircle size={13} className="text-red-400 shrink-0" />}
+                          <span className="text-[13px] font-medium text-gray-700">{TIPO_LABELS[tipo]}</span>
+                          {doc?.nombre_archivo && !fileSeleccionado && (
+                            <span className="text-[11px] text-gray-400 truncate max-w-[150px]">{doc.nombre_archivo}</span>
+                          )}
+                        </div>
+                        {fileSeleccionado && (
+                          <button onClick={() => setCorrFiles((prev) => { const n = { ...prev }; delete n[tipo]; return n; })}
+                            className="text-gray-400 hover:text-red-500 transition-colors">
+                            <XIcon size={14} />
+                          </button>
+                        )}
+                      </div>
+                      {fileSeleccionado ? (
+                        <p className="text-[12px] text-orange-600 font-medium flex items-center gap-1.5">
+                          <FileText size={13} /> {fileSeleccionado.name}
+                        </p>
+                      ) : (
+                        <label className="flex items-center gap-2 cursor-pointer px-3 py-2 border border-dashed border-gray-300 rounded-lg hover:border-orange-400 hover:bg-orange-50 transition-colors">
+                          <Upload size={13} className="text-gray-400" />
+                          <span className="text-[12px] text-gray-500">Subir nuevo PDF</span>
+                          <input type="file" accept="application/pdf" className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) setCorrFiles((prev) => ({ ...prev, [tipo]: file }));
+                              e.target.value = "";
+                            }} />
+                        </label>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Documentos del vehículo */}
+            {corrModal.vehiculo_id && (
+              <div>
+                <p className="text-[12px] font-semibold text-gray-500 mb-2">
+                  Documentos del vehículo ({corrModal.vehiculo?.placa ?? ""})
+                </p>
+                <div className="space-y-2">
+                  {(["soat", "tecnicomecanica"] as TipoDocumento[]).map((tipo) => {
+                    const doc = corrModal.documentos?.find((d) => d.tipo === tipo);
+                    const fileSeleccionado = corrFiles[tipo];
+                    return (
+                      <div key={tipo} className={clsx("rounded-lg border p-3 transition-colors", fileSeleccionado ? "border-orange-200 bg-orange-50" : "border-gray-200")}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            {doc ? <CheckCircle size={13} className="text-green-600 shrink-0" /> : <XCircle size={13} className="text-red-400 shrink-0" />}
+                            <span className="text-[13px] font-medium text-gray-700">{TIPO_LABELS[tipo]}</span>
+                            {doc?.nombre_archivo && !fileSeleccionado && (
+                              <span className="text-[11px] text-gray-400 truncate max-w-[150px]">{doc.nombre_archivo}</span>
+                            )}
+                          </div>
+                          {fileSeleccionado && (
+                            <button onClick={() => {
+                              setCorrFiles((prev) => { const n = { ...prev }; delete n[tipo]; return n; });
+                              setCorrFechas((prev) => { const n = { ...prev }; delete n[tipo]; return n; });
+                            }} className="text-gray-400 hover:text-red-500 transition-colors">
+                              <XIcon size={14} />
+                            </button>
+                          )}
+                        </div>
+                        {fileSeleccionado ? (
+                          <div className="space-y-2">
+                            <p className="text-[12px] text-orange-600 font-medium flex items-center gap-1.5">
+                              <FileText size={13} /> {fileSeleccionado.name}
+                            </p>
+                            <div>
+                              <label className="block text-[11px] text-gray-500 mb-1">Fecha de inicio de vigencia *</label>
+                              <input type="date" value={corrFechas[tipo] ?? ""}
+                                onChange={(e) => setCorrFechas((prev) => ({ ...prev, [tipo]: e.target.value }))}
+                                className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                            </div>
+                          </div>
+                        ) : (
+                          <label className="flex items-center gap-2 cursor-pointer px-3 py-2 border border-dashed border-gray-300 rounded-lg hover:border-orange-400 hover:bg-orange-50 transition-colors">
+                            <Upload size={13} className="text-gray-400" />
+                            <span className="text-[12px] text-gray-500">Subir nuevo PDF</span>
+                            <input type="file" accept="application/pdf" className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) setCorrFiles((prev) => ({ ...prev, [tipo]: file }));
+                                e.target.value = "";
+                              }} />
+                          </label>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2 border-t border-gray-100">
+              <button onClick={closeCorrModal}
+                className="flex-1 py-2 border border-gray-200 rounded-lg text-[13px] text-gray-600 hover:bg-gray-50">
+                Cancelar
+              </button>
+              <button onClick={handleCorreccion}
+                disabled={
+                  corrLoading ||
+                  Object.keys(corrFiles).length === 0 ||
+                  (["soat", "tecnicomecanica"] as TipoDocumento[]).some((t) => corrFiles[t] && !corrFechas[t])
+                }
                 className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-[13px] font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
-                {corrLoading ? <><span className="animate-spin">⟳</span> Enviando...</> : "Enviar corrección"}
+                {corrLoading ? <><span className="animate-spin inline-block">⟳</span> Subiendo...</> : `Enviar corrección (${Object.keys(corrFiles).length} doc${Object.keys(corrFiles).length !== 1 ? "s" : ""})`}
               </button>
             </div>
           </div>

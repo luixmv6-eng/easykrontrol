@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, ClipboardList, Star, Shield, Building2, UsersRound, Wrench, X, Calendar, ScrollText, UserCog } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, Star, Shield, Building2, UsersRound, Wrench, X, Calendar, UserCog } from "lucide-react";
 import clsx from "clsx";
 
 const adminLinks = [
@@ -15,8 +15,7 @@ const adminLinks = [
   { href: "/dashboard/calendario",             label: "Calendario",           icon: Calendar },
   { href: "/dashboard/evaluaciones",           label: "Evaluaciones",         icon: Star },
   { href: "/dashboard/usuarios",               label: "Usuarios",             icon: UserCog },
-  { href: "/dashboard/auditoria",              label: "Auditoría",            icon: ScrollText },
-  { href: "/dashboard/seguridad",              label: "Seguridad",            icon: Shield },
+{ href: "/dashboard/seguridad",              label: "Seguridad",            icon: Shield },
 ];
 
 const proveedorLinks = [
