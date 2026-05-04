@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import {
-  Plus, Building2, Edit2, CheckCircle, XCircle,
+  Plus, Building2, Edit2, CheckCircle, XCircle, Trash2,
   ChevronDown, ChevronUp, Phone, Mail, MapPin, Hash,
   Users, UserPlus, UserX, Loader2, ShieldCheck,
 } from "lucide-react";
@@ -250,6 +250,9 @@ export function ProveedoresClient({ proveedores: inicial }: { proveedores: Prove
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [deleteModal, setDeleteModal] = useState<Proveedor | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const abrirNuevo = () => {
     setEditando(null);
@@ -323,6 +326,24 @@ export function ProveedoresClient({ proveedores: inicial }: { proveedores: Prove
       setLista((prev) => prev.map((x) => (x.id === p.id ? json.data : x)));
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Error al cambiar estado");
+    }
+  };
+
+  const eliminarProveedor = async () => {
+    if (!deleteModal) return;
+    setDeleteLoading(true);
+    setDeleteError("");
+    try {
+      const res = await fetch(`/api/proveedores/${deleteModal.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Error al eliminar");
+      setLista((prev) => prev.filter((p) => p.id !== deleteModal.id));
+      setExpandido(null);
+      setDeleteModal(null);
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : "Error inesperado");
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -550,6 +571,12 @@ export function ProveedoresClient({ proveedores: inicial }: { proveedores: Prove
                         <CheckCircle size={12} /> Activar
                       </button>
                     )}
+                    <button
+                      onClick={() => { setDeleteModal(p); setDeleteError(""); }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 border border-red-200 text-red-600 rounded-lg text-[12px] hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 size={12} /> Eliminar
+                    </button>
                   </div>
 
                   {/* Panel de usuarios */}
@@ -562,6 +589,51 @@ export function ProveedoresClient({ proveedores: inicial }: { proveedores: Prove
           );
         })}
       </div>
+
+      {/* Modal confirmación eliminar */}
+      {deleteModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+                <Trash2 size={18} className="text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-[15px] font-bold text-gray-800">Eliminar empresa</h3>
+                <p className="text-[12px] text-gray-400">{deleteModal.nombre}</p>
+              </div>
+            </div>
+            <div className="bg-red-50 border border-red-100 rounded-lg p-3 space-y-1">
+              <p className="text-[12px] text-red-700 font-semibold">Esta acción es irreversible.</p>
+              <p className="text-[12px] text-red-600">
+                Se eliminarán permanentemente todos los datos asociados: personal, documentos, vehículos y grupos de ingreso de esta empresa.
+              </p>
+            </div>
+            {deleteError && (
+              <p className="text-[12px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {deleteError}
+              </p>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setDeleteModal(null); setDeleteError(""); }}
+                disabled={deleteLoading}
+                className="flex-1 py-2 border border-gray-200 rounded-lg text-[13px] text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={eliminarProveedor}
+                disabled={deleteLoading}
+                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[13px] font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {deleteLoading ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                {deleteLoading ? "Eliminando..." : "Sí, eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

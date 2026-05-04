@@ -46,3 +46,31 @@ export async function PATCH(
 
   return NextResponse.json({ data });
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: { id: string } }
+) {
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("rol")
+    .eq("id", session.user.id)
+    .single();
+
+  if (profile?.rol !== "admin") {
+    return NextResponse.json({ error: "Solo administradores pueden eliminar empresas" }, { status: 403 });
+  }
+
+  const { error } = await supabase
+    .from("proveedores")
+    .delete()
+    .eq("id", params.id);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ ok: true });
+}
