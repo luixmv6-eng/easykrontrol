@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Easy Kontrol — Documentación Técnica Completa</title>
+<style>
+  :root {
+    --ek: #7ab648; --ek-dark: #5a9030; --ek-light: #f0f7e8;
+    --gray: #374151; --gray-light: #6b7280; --gray-bg: #f9fafb;
+    --border: #e5e7eb; --red: #dc2626; --amber: #d97706; --blue: #2563eb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: var(--gray); background: #fff; font-size: 14px; line-height: 1.6; }
+  /* NAV */
+  nav { position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: #1a2332; overflow-y: auto; padding: 20px 0; z-index: 100; }
+  nav .logo { padding: 0 20px 20px; border-bottom: 1px solid #2d3f57; margin-bottom: 16px; }
+  nav .logo span { display: inline-block; background: var(--ek); color: #fff; font-weight: 900; font-size: 13px; padding: 4px 8px; border-radius: 6px; margin-right: 6px; }
+  nav .logo strong { color: #fff; font-size: 13px; }
+  nav a { display: block; padding: 7px 20px; color: #94a3b8; text-decoration: none; font-size: 12px; transition: all .15s; border-left: 2px solid transparent; }
+  nav a:hover, nav a.active { color: var(--ek); background: rgba(122,182,72,.08); border-left-color: var(--ek); }
+  nav .section-label { padding: 14px 20px 4px; color: #4b5e78; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+  /* MAIN */
+  main { margin-left: 220px; padding: 40px 48px; max-width: 1100px; }
+  h1 { font-size: 28px; font-weight: 800; color: #111; margin-bottom: 6px; }
+  h2 { font-size: 20px; font-weight: 700; color: #111; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--ek); }
+  h3 { font-size: 15px; font-weight: 700; color: var(--ek-dark); margin: 28px 0 10px; }
+  h4 { font-size: 13px; font-weight: 700; color: var(--gray); margin: 20px 0 8px; }
+  p { margin-bottom: 12px; }
+  /* COVER */
+  .cover { background: linear-gradient(135deg, #1a2332 0%, #243450 100%); border-radius: 16px; padding: 40px 48px; margin-bottom: 48px; color: #fff; }
+  .cover .ek-badge { display: inline-block; background: var(--ek); color: #fff; font-weight: 900; font-size: 22px; padding: 8px 16px; border-radius: 10px; margin-bottom: 16px; }
+  .cover h1 { color: #fff; font-size: 32px; margin-bottom: 8px; }
+  .cover p { color: #94a3b8; font-size: 15px; margin: 0; }
+  .cover .meta { display: flex; gap: 24px; margin-top: 24px; flex-wrap: wrap; }
+  .cover .meta-item { background: rgba(255,255,255,.08); border-radius: 8px; padding: 12px 20px; }
+  .cover .meta-item strong { display: block; font-size: 22px; color: var(--ek); }
+  .cover .meta-item span { font-size: 12px; color: #94a3b8; }
+  /* TAGS */
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin: 2px; }
+  .tag-green { background: #dcfce7; color: #166534; }
+  .tag-amber { background: #fef9c3; color: #854d0e; }
+  .tag-red { background: #fee2e2; color: #991b1b; }
+  .tag-blue { background: #dbeafe; color: #1e40af; }
+  .tag-gray { background: #f3f4f6; color: #374151; }
+  .tag-purple { background: #ede9fe; color: #5b21b6; }
+  /* TABLES */
+  table { width: 100%; border-collapse: collapse; margin: 12px 0 24px; font-size: 13px; }
+  th { background: var(--ek); color: #fff; padding: 9px 12px; text-align: left; font-weight: 600; font-size: 12px; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:nth-child(even) td { background: var(--gray-bg); }
+  code { background: #f1f5f9; color: #be123c; padding: 1px 5px; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 12px; }
+  pre { background: #1e293b; color: #e2e8f0; padding: 20px; border-radius: 10px; font-size: 12px; overflow-x: auto; margin: 12px 0 20px; line-height: 1.7; }
+  /* CARDS */
+  .card { background: var(--gray-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .card-title { font-weight: 700; color: #111; margin-bottom: 8px; font-size: 14px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  /* INFO BOX */
+  .info { background: #eff6ff; border-left: 4px solid var(--blue); border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 12px 0; font-size: 13px; }
+  .warn { background: #fffbeb; border-left: 4px solid var(--amber); border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 12px 0; font-size: 13px; }
+  .tip { background: var(--ek-light); border-left: 4px solid var(--ek); border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 12px 0; font-size: 13px; }
+  /* FLOW */
+  .flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .flow-step { background: #fff; border: 2px solid var(--ek); border-radius: 8px; padding: 6px 14px; font-size: 12px; font-weight: 600; color: var(--ek-dark); }
+  .flow-arrow { color: var(--gray-light); font-size: 18px; }
+  /* ROLE TABLE */
+  .role-admin { color: #166534; font-weight: 600; }
+  .role-prov { color: #1e40af; font-weight: 600; }
+  .role-pub { color: #6b7280; font-weight: 600; }
+  .pk { color: #dc2626; font-weight: 700; }
+  .fk { color: #2563eb; font-weight: 700; }
+  /* SECTION */
+  section { margin-bottom: 20px; }
+  /* PDF BUTTON */
+  #btn-pdf {
+    position: fixed; bottom: 28px; right: 28px; z-index: 999;
+    background: var(--ek); color: #fff; border: none; border-radius: 12px;
+    padding: 12px 22px; font-size: 14px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(90,144,48,.4); display: flex; align-items: center; gap: 8px;
+    transition: background .15s, transform .1s;
+  }
+  #btn-pdf:hover { background: var(--ek-dark); transform: translateY(-1px); }
+  #btn-pdf:active { transform: translateY(0); }
+  /* PRINT — impresión nativa del navegador */
+  @page {
+    size: A4;
+    margin: 18mm 16mm 18mm 16mm;
+  }
+  @media print {
+    /* Ocultar elementos de navegación y UI */
+    nav, #btn-pdf { display: none !important; }
+
+    /* Layout principal sin sidebar */
+    body { background: #fff !important; font-size: 11px; }
+    main { margin-left: 0 !important; padding: 0 !important; max-width: 100% !important; }
+
+    /* Preservar colores de fondo */
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+    /* Encabezados: nueva sección en nueva página */
+    h2 { page-break-before: always; break-before: always; margin-top: 0; font-size: 15px; }
+    h2:first-of-type { page-break-before: avoid; break-before: avoid; }
+    h3 { font-size: 13px; page-break-after: avoid; break-after: avoid; }
+    h4 { font-size: 12px; page-break-after: avoid; break-after: avoid; }
+
+    /* Nunca cortar a la mitad */
+    table  { page-break-inside: avoid; break-inside: avoid; width: 100%; font-size: 10px; }
+    pre    { page-break-inside: avoid; break-inside: avoid; white-space: pre-wrap; font-size: 9px; }
+    .card  { page-break-inside: avoid; break-inside: avoid; }
+    .info, .warn, .tip { page-break-inside: avoid; break-inside: avoid; }
+    .flow  { page-break-inside: avoid; break-inside: avoid; }
+    .cover { page-break-inside: avoid; break-inside: avoid; margin-bottom: 12px; padding: 24px 28px; }
+    .grid-3 { grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+    /* Tablas */
+    th { font-size: 10px; padding: 6px 8px; }
+    td { font-size: 10px; padding: 6px 8px; }
+
+    /* Portada */
+    .cover .meta { flex-wrap: wrap; gap: 10px; }
+    .cover .meta-item { padding: 8px 14px; }
+    .cover .meta-item strong { font-size: 18px; }
+
+    /* Mantener href de los links visible */
+    a { color: inherit; text-decoration: none; }
+
+    /* Footer del documento */
+    div[style*="1a2332"] { page-break-inside: avoid; break-inside: avoid; margin-top: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo"><span>EK</span><strong>EASY KONTROL</strong></div>
+  <div class="section-label">General</div>
+  <a href="#resumen">Resumen del Proyecto</a>
+  <a href="#stack">Stack Tecnológico</a>
+  <a href="#estructura">Estructura de Archivos</a>
+  <div class="section-label">Base de Datos</div>
+  <a href="#bd-general">Arquitectura BD</a>
+  <a href="#tablas">Tablas (12)</a>
+  <a href="#relaciones">Relaciones ERD</a>
+  <a href="#rls">Row Level Security</a>
+  <a href="#triggers">Triggers y Funciones</a>
+  <a href="#storage">Storage</a>
+  <div class="section-label">Backend</div>
+  <a href="#clientes">Clientes Supabase</a>
+  <a href="#api">Endpoints API (17)</a>
+  <a href="#email">Sistema de Email</a>
+  <a href="#cron">Cron Jobs</a>
+  <a href="#audit">Auditoría</a>
+  <div class="section-label">Frontend</div>
+  <a href="#paginas">Páginas y Rutas</a>
+  <a href="#componentes-auth">Componentes Auth</a>
+  <a href="#componentes-dash">Componentes Dashboard</a>
+  <a href="#componentes-personal">Componentes Personal</a>
+  <a href="#componentes-ui">Componentes UI</a>
+  <div class="section-label">Sistema</div>
+  <a href="#autenticacion">Flujo de Autenticación</a>
+  <a href="#middleware">Middleware</a>
+  <a href="#notificaciones">Notificaciones</a>
+  <a href="#pwa">PWA</a>
+  <a href="#env">Variables de Entorno</a>
+  <a href="#tipos">Tipos TypeScript</a>
+</nav>
+
+<main>
+
+<!-- PORTADA -->
+<div class="cover">
+  <div class="ek-badge">EK</div>
+  <h1>Easy Kontrol</h1>
+  <p>Documentación Técnica Completa — Plataforma de Gestión de Proveedores y Personal Contratista</p>
+  <div class="meta">
+    <div class="meta-item"><strong>12</strong><span>Tablas BD</span></div>
+    <div class="meta-item"><strong>17</strong><span>Endpoints API</span></div>
+    <div class="meta-item"><strong>11</strong><span>Páginas</span></div>
+    <div class="meta-item"><strong>28+</strong><span>Componentes</span></div>
+    <div class="meta-item"><strong>2</strong><span>Roles de usuario</span></div>
+  </div>
+</div>
+
+<!-- RESUMEN -->
+<h2 id="resumen">Resumen del Proyecto</h2>
+<p>Easy Kontrol es una plataforma SaaS multi-rol para la gestión integral de proveedores y personal contratista. Permite a empresas administradoras registrar, aprobar, rechazar y hacer seguimiento al personal de sus empresas contratistas (proveedores), incluyendo gestión documental, control de vencimientos, evaluación de proveedores y auditoría completa de acciones.</p>
+
+<div class="grid-3">
+  <div class="card"><div class="card-title">Rol Admin</div>Ve y gestiona todo el sistema: aprueba personal, crea usuarios, evalúa proveedores, accede a auditoría y reportes.</div>
+  <div class="card"><div class="card-title">Rol Proveedor</div>Registra su propio personal, sube documentos, consulta estado de aprobaciones y visualiza vencimientos de su empresa.</div>
+  <div class="card"><div class="card-title">Acceso Público</div>Formulario de registro sin cuenta para que el personal se registre directamente sin que el proveedor lo haga.</div>
+</div>
+
+<!-- STACK -->
+<h2 id="stack">Stack Tecnológico</h2>
+<table>
+  <tr><th>Categoría</th><th>Tecnología</th><th>Versión</th><th>Uso</th></tr>
+  <tr><td>Framework</td><td>Next.js (App Router)</td><td>14.2.5</td><td>SSR, rutas, API Routes</td></tr>
+  <tr><td>Base de datos</td><td>Supabase (PostgreSQL)</td><td>^2.43.4</td><td>DB, Auth, Storage, RLS</td></tr>
+  <tr><td>Autenticación</td><td>Supabase Auth + SSR</td><td>^0.3.0</td><td>Sesiones, MFA TOTP</td></tr>
+  <tr><td>Estilos</td><td>Tailwind CSS</td><td>—</td><td>Utilidades CSS, tema ek-*</td></tr>
+  <tr><td>Formularios</td><td>react-hook-form + Zod</td><td>^7.52 / ^3.23</td><td>Validación de formularios</td></tr>
+  <tr><td>Gráficas</td><td>Recharts</td><td>^3.8.1</td><td>Charts del dashboard</td></tr>
+  <tr><td>Email</td><td>Nodemailer</td><td>^7.0.13</td><td>SMTP Gmail</td></tr>
+  <tr><td>Excel</td><td>xlsx</td><td>^0.18.5</td><td>Exportación de reportes</td></tr>
+  <tr><td>PDF</td><td>jsPDF + jspdf-autotable</td><td>^4.2 / ^5.0</td><td>Reportes PDF por persona</td></tr>
+  <tr><td>MFA</td><td>otplib</td><td>^12.0.1</td><td>Generación/verificación TOTP</td></tr>
+  <tr><td>Iconos</td><td>Lucide React</td><td>^0.396</td><td>Iconografía de la UI</td></tr>
+  <tr><td>PWA</td><td>@ducanh2912/next-pwa</td><td>—</td><td>Service Worker, caché offline</td></tr>
+  <tr><td>Fuente</td><td>Nunito (Google Fonts)</td><td>—</td><td>Tipografía principal</td></tr>
+</table>
+
+<!-- ESTRUCTURA -->
+<h2 id="estructura">Estructura de Archivos</h2>
+<pre>easy-kontrol/
+├── src/
+│   ├── app/
+│   │   ├── api/                          ← Todos los endpoints del backend
+│   │   │   ├── admin/reset-password/     ← Genera link de recuperación
+│   │   │   ├── cron/
+│   │   │   │   ├── vencimientos/         ← Alerta documentos por vencer
+│   │   │   │   └── reporte-mensual/      ← Reporte mensual por email
+│   │   │   ├── evaluaciones/             ← CRUD evaluaciones
+│   │   │   ├── export/personal/          ← Exportar Excel
+│   │   │   ├── grupos/
+│   │   │   │   ├── route.ts              ← GET/POST grupos
+│   │   │   │   └── [id]/revision/        ← Aprobar/rechazar grupo
+│   │   │   ├── notifications/            ← GET/PATCH notificaciones
+│   │   │   ├── personal/
+│   │   │   │   ├── route.ts              ← GET/POST personal
+│   │   │   │   ├── bulk/                 ← PATCH masivo
+│   │   │   │   └── [id]/
+│   │   │   │       ├── route.ts          ← PATCH individual
+│   │   │   │       └── documentos/       ← POST documentos
+│   │   │   ├── proveedores/
+│   │   │   │   ├── route.ts              ← GET/POST
+│   │   │   │   └── [id]/route.ts         ← PATCH
+│   │   │   ├── registro-publico/         ← POST público (sin auth)
+│   │   │   ├── test-email/               ← GET prueba email
+│   │   │   └── usuarios/
+│   │   │       ├── route.ts              ← GET/POST
+│   │   │       └── [id]/route.ts         ← PATCH/DELETE
+│   │   ├── auth/
+│   │   │   ├── callback/route.ts         ← Callback de Supabase Auth
+│   │   │   └── reset-password/page.tsx   ← Formulario cambio contraseña
+│   │   ├── dashboard/
+│   │   │   ├── layout.tsx                ← Layout protegido (verifica sesión)
+│   │   │   ├── page.tsx                  ← Dashboard KPIs y gráficas
+│   │   │   ├── auditoria/page.tsx        ← Log de auditoría (admin)
+│   │   │   ├── calendario/page.tsx       ← Vencimientos próximos
+│   │   │   ├── evaluaciones/page.tsx     ← Evaluaciones de proveedores
+│   │   │   ├── personal/
+│   │   │   │   ├── consulta/page.tsx     ← Ver y gestionar personal
+│   │   │   │   ├── correcciones/page.tsx ← Personal en corrección (admin)
+│   │   │   │   ├── grupos/page.tsx       ← Ingresos grupales (admin)
+│   │   │   │   └── registro/page.tsx     ← Registrar personal/grupos
+│   │   │   ├── proveedores/page.tsx      ← Gestión de empresas (admin)
+│   │   │   ├── seguridad/page.tsx        ← MFA + reset de contraseñas
+│   │   │   └── usuarios/page.tsx         ← Gestión de usuarios (admin)
+│   │   ├── login/page.tsx                ← Página de inicio de sesión
+│   │   ├── registro-publico/
+│   │   │   ├── layout.tsx                ← Layout mínimo sin auth
+│   │   │   └── page.tsx                  ← Registro público sin cuenta
+│   │   ├── globals.css                   ← Estilos globales
+│   │   ├── layout.tsx                    ← Root layout (metadata, fuentes)
+│   │   └── page.tsx                      ← Redirección / → /dashboard o /login
+│   ├── components/
+│   │   ├── auth/                         ← Login, MFA, recuperación, sesión
+│   │   ├── dashboard/                    ← Shell, navbar, sidebar, charts
+│   │   ├── evaluaciones/                 ← Formulario y lista de evaluaciones
+│   │   ├── notifications/                ← Campana de notificaciones
+│   │   ├── personal/                     ← Registro, consulta, grupos, correcciones
+│   │   ├── proveedores/                  ← Gestión de proveedores
+│   │   ├── ui/                           ← InputField, AlertMessage, Skeleton
+│   │   └── usuarios/                     ← Gestión de usuarios
+│   ├── lib/
+│   │   ├── audit.ts                      ← Función logAudit()
+│   │   ├── email.ts                      ← sendEmail() vía Gmail SMTP
+│   │   ├── excel.ts                      ← Generación archivos XLSX
+│   │   ├── mfa.ts                        ← Generación y verificación TOTP
+│   │   ├── notifications.ts              ← crearNotificacion() y admins
+│   │   ├── validations.ts                ← Esquemas Zod
+│   │   └── supabase/
+│   │       ├── client.ts                 ← Cliente browser (anon key)
+│   │       ├── server.ts                 ← Cliente server (SSR + cookies)
+│   │       └── admin.ts                  ← Cliente admin (service role key)
+│   ├── middleware.ts                      ← Protección de rutas + refresh sesión
+│   └── types/
+│       └── index.ts                      ← Todos los tipos TypeScript
+├── docs/                                 ← Esta documentación
+├── public/                               ← Assets estáticos + Service Worker
+├── next.config.js                        ← Config Next.js + PWA
+├── tailwind.config.ts                    ← Tema y colores personalizados
+└── package.json</pre>
+
+<!-- BASE DE DATOS -->
+<h2 id="bd-general">Arquitectura de Base de Datos</h2>
+<p>El proyecto usa <strong>PostgreSQL vía Supabase</strong> con RLS activado en todas las tablas. La base de datos tiene <strong>12 tablas</strong>, 3 triggers, 1 función RPC, 1 vista y 1 bucket de almacenamiento.</p>
+<div class="info">Las llaves se identifican así: <span class="pk">PK = Llave Primaria</span> · <span class="fk">FK = Llave Foránea</span> · <code>UNIQUE</code> = Restricción de unicidad</div>
+
+<h2 id="tablas">Tablas de la Base de Datos</h2>
+
+<h3>1. profiles</h3>
+<p>Extiende <code>auth.users</code> de Supabase. Se crea automáticamente vía trigger cada vez que un nuevo usuario se registra en el sistema de autenticación.</p>
+<table>
+  <tr><th>Columna</th><th>Tipo</th><th>Restricción</th><th>Descripción</th></tr>
+  <tr><td><code class="pk">id</code></td><td>UUID</td><td><span class="pk">PK</span> → auth.users(id)</td><td>Mismo ID del usuario en Supabase Auth</td></tr>
+  <tr><td><code>username</code></td><td>TEXT</td><td>nullable</td><td>Nombre de usuario opcional</td></tr>
+  <tr><td><code>full_name</code></td><td>TEXT</td><td>nullable</td><td>Nombre completo</td></tr>
+  <tr><td><code>avatar_url</code></td><td>TEXT</td><td>nullable</td><td>URL de foto de perfil</td></tr>
+  <tr><td><code>mfa_enabled</code></td><td>BOOLEAN</td><td>default FALSE</td><td>Si tiene MFA activo</td></tr>
+  <tr><td><code>rol</code></td><td>TEXT</td><td>CHECK: 'admin' | 'proveedor'</td><td>Rol del usuario en el sistema</td></tr>
+  <tr><td><code class="fk">proveedor_id</code></td><td>UUID</td><td><span class="fk">FK</span> → proveedores(id), nullable</td><td>Empresa asociada (solo rol proveedor)</td></tr>
+  <tr><td><code>created_at</code></td><td>TIMESTAMPTZ</td><td>default NOW()</td><td></td></tr>
+  <tr><td><code>updated_at</code></td><td>TIMESTAMPTZ</td><td>default NOW()</td><td></td></tr>
+</table>
+<div class="tip"><strong>Trigger:</strong> <code>on_auth_user_created</code> — cada vez que se inserta un usuario en <code>auth.users</code>, se crea automáticamente un registro en <code>profiles</code> con <code>rol='proveedor'</code>.</div>
+
+<h3>2. proveedores</h3>
+<p>Empresas contratistas registradas en el sistema. Cada proveedor agrupa personal, vehículos, grupos de ingreso y evaluaciones.</p>
+<table>
+  <tr><th>Columna</th><th>Tipo</th><th>Restricción</th><th>Descripción</th></tr>
+  <tr><td><code class="pk">id</code></td><td>UUID</td><td><span class="pk">PK</span>, gen_random_uuid()</td><td>Identificador único</td></tr>
+  <tr><td><code>nombre</code></td><td>TEXT</td><td>NOT NULL</td><td>Nombre de la empresa</td></tr>
+  <tr><td><code>nit</code></td><td>TEXT</td><td>NOT NULL, UNIQUE</td><td>NIT de la empresa (único en todo el sistema)</td></tr>
+  <tr><td><code>email</code></td><td>TEXT</td><td>nullable</td><td>Correo de contacto</td></tr>
+  <tr><td><code>telefono</code></td><td>TEXT</td><td>nullable</td><td>Teléfono de contacto</td></tr>
+  <tr><td><code>direccion</code></td><td>TEXT</td><td>nullable</td><td>Dirección física</td></tr>
+  <tr><td><code>estado</code></td><td>TEXT</td><td>CHECK: 'activo' | 'inactivo' | 'suspendido'</td><td>Estado de la empresa</td></tr>
+  <tr><td><code class="fk">created_by</code></td><td>UUID</td><td><span class="fk">FK</span> → auth.users(id)</td><td>Admin que creó el proveedor</td></tr>
+  <tr><td><code>created_at</code></td><td>TIMESTAMPTZ</td><td>default NOW()</td><td></td></tr>
+  <tr><td><code>updated_at</code></td><td>TIMESTAMPTZ</td><td>default NOW()</td><td></td></tr>
+</table>
+<div class="tip"><strong>Trigger:</strong> <code>trg_proveedores_updated_at</code> — actualiza <code>updated_at</code> automáticamente en cada UPDATE.</div>
+
+<h3>3. personal</h3>
+<p>Personas registradas por los proveedores para ingresar a las instalaciones. Es la tabla central del sistema.</p>
+<table>
+  <tr><th>Columna</th><th>Tipo</th><th>Restricción</th><th>Descripción</th></tr>
+  <tr><td><code class="pk">id</code></td><td>UUID</td><td><span class="pk">PK</span></td><td>Identificador único</td></tr>
+  <tr><td><code class="fk">proveedor_id</code></td><td>UUID</td><td><span class="fk">FK</span> → proveedores(id) ON DELETE CASCADE, NOT NULL</td><td>Empresa a la que pertenece</td></tr>
+  <tr><td><code>nombres</code></td><td>TEXT</td><td>NOT NULL</td><td>Nombre completo de la persona</td></tr>
+  <tr><td><code>cedula</code></td><td>TEXT</td><td>NOT NULL</td><td>Número de cédula</td></tr>
+  <tr><td><code>estado</code></td><td>TEXT</td><td>CHECK: 'pendiente' | 'aprobado' | 'rechazado' | 'inactivo', default 'pendiente'</td><td>Estado actual en el flujo de aprobación</td></tr>
+  <tr><td><code class="fk">aprobado_por</code></td><td>UUID</td><td><span class="fk">FK</span> → auth.users(id), nullable</td><td>Admin que aprobó/rechazó</td></tr>
+  <tr><td><code>aprobado_at</code></td><td>TIMESTAMPTZ</td><td>nullable</td><td>Fecha de la decisión</td></tr>
+  <tr><td><code>motivo_rechazo</code></td><td>TEXT</td><td>nullable</td><td>Razón del rechazo (para notificar al proveedor)</td></tr>
+  <tr><td><code>fecha_entrada</code></td><td>TIMESTAMPTZ</td><td>nullable</td><td>Fecha/hora de ingreso autorizado</td></tr>
+  <tr><td><code>fecha_fin</code></td><td>TIMESTAMPTZ</td><td>nullable</td><td>Fecha/hora de finalización del permiso</td></tr>
+  <tr><td><code class="fk">grupo_id</code></td><td>UUID</td><td><span class="fk">FK</span> → grupos_ingreso(id), nullable</td><td>Grupo al que pertenece (si es ingreso grupal)</td></tr>
+  <tr><td><code class="fk">vehiculo_id</code></td><td>UUID</td><td><span class="fk">FK</span> → vehiculos(id), nullable</td><td>Vehículo asociado (si aplica)</td></tr>
+  <tr><td><code>en_correccion</code></td><td>BOOLEAN</td><td>default FALSE</td><td>Si el proveedor debe corregir documentos</td></tr>
+  <tr><td><code>created_at</code></td><td>TIMESTAMPTZ</td><td>default NOW()</td><td></td></tr>
+  <tr><td><code>updated_at</code></td><td>TIMESTAMPTZ</td><td>default NOW()</td><td></td></tr>
+</table>
+<div class="warn"><strong>Constraint UNIQUE:</strong> <code>(proveedor_id, cedula)</code> — la misma cédula no puede registrarse dos veces para el mismo proveedor.</div>
+
+<h3>4. documentos_personal</h3>
+<p>Documentos cargados por persona. Cada persona puede tener hasta 5 tipos de documentos.</p>
+<table>
+  <tr><th>Columna</th><th>Tipo</th><th>Restricción</th><th>Descripción</th></tr>
+  <tr><td><code class="pk">id</code></td><td>UUID</td><td><span class="pk">PK</span></td><td></td></tr>
+  <tr><td><code class="fk">personal_id</code></td><td>UUID</td><td><span class="fk">FK</span> → personal(id) ON DELETE CASCADE, NOT NULL</td><td>Persona dueña del documento</td></tr>
+  <tr><td><code>tipo</code></td><td>TEXT</td><td>CHECK: 'cedula' | 'licencia' | 'arl' | 'soat' | 'tecnicomecanica'</td><td>Tipo de documento</td></tr>
+  <tr><td><code>url</code></td><td>TEXT</td><td>NOT NULL</td><td>Ruta en Supabase Storage</td></tr>
+  <tr><td><code>nombre_archivo</code></td><td>TEXT</td><td>nullable</td><td>Nombre original del archivo</td></tr>
+  <tr><td><code>fecha_inicio_vigencia</code></td><td>DATE</td><td>nullable</td><td>Fecha de inicio de vigencia</td></tr>
+  <tr><td><code>fecha_vencimiento</code></td><td>DATE</td><td>nullable</td><td>Fecha de vencimiento (auto para SOAT/Tecno)</td></tr>
+  <tr><td><code>alerta_60_enviada</code></td><td>BOOLEAN</td><td>default FALSE</td><td>Si ya se envió alerta de vencimiento</td></tr>
+  <tr><td><code>created_at / updated_at</code></td><td>TIMESTAMPTZ</td><td></td><td></td></tr>
+</table>
+<div class="warn"><strong>Constraint UNIQUE:</strong> <code>(personal_id, tipo)</code> — solo un documento por tipo por persona (se reemplaza al actualizar).</div>
+<div class="tip"><strong>Trigger:</strong> <code>trg_calcular_vencimiento</code> — para documentos tipo <code>soat</code> y <code>tecnicomecanica</code>, calcula automáticamente <code>fecha_vencimiento = fecha_inicio_vigencia + 1 año</code>.</div>
+
+<h3>5. vehiculos</h3>
+<table>
+  <tr><th>Columna</th><th>Tipo</th><th>Restricción</th><th>Descripción</th></tr>
+  <tr><td><code class="pk">id</code></td><td>UUID</td><td><span class="pk">PK</span></td><td></td></tr>
+  <tr><td><code class="fk">proveedor_id</code></td><td>UUID</td><td><span class="fk">FK</span> → proveedores(id) ON DELETE CASCADE</td><td>Empresa dueña del vehículo</td></tr>
+  <tr><td><code>placa</code></td><td>TEXT</td><td>NOT NULL</td><td>Placa del vehículo</td></tr>
+  <tr><td><code>marca</code></td><td>TEXT</td><td>nullable</td><td></td></tr>
+  <tr><td><code>modelo</code></td><td>TEXT</td><td>nullable</td><td></td></tr>
+  <tr><td><code>tipo</code></td><td>TEXT</td><td>nullable</td><td>Tipo de vehículo</td></tr>
+  <tr><td><code>estado</code></td><td>TEXT</td><td>CHECK: 'activo' | 'inactivo', default 'activo'</td><td></td></tr>
+  <tr><td><code>created_at / updated_at</code></td><td>TIMESTAMPTZ</td><td></td><td></td></tr>
+</table>
+<div class="warn"><strong>Constraint UNIQUE:</strong> <code>(proveedor_id, placa)</code> — placa única por empresa. Si la misma placa ya existe para ese proveedor, se reutiliza el registro.</div>
+
+<h3>6. grupos_ingreso</h3>
+<p>Permite registrar múltiples personas del mismo proveedor en una sola solicitud grupal, con revisión y aprobación colectiva.</p>
+<table>
+  <tr><th>Columna</th><th>Tipo</th><th>Restricción</th><th>Descripción</th></tr>
+  <tr><td><code class="pk">id</code></td><td>UUID</td><td><span class="pk">PK</span></td><td></td></tr>
+  <tr><td><code class="fk">proveedor_id</code></td><td>UUID</td><td><span class="fk">FK</span> → proveedores(id) ON DELETE CASCADE</td><td></td></tr>
+  <tr><td><code>nombre</code></td><td>TEXT</td><td>NOT NULL</td><td>Nombre del grupo (ej: "Mantenimiento Mayo")</td></tr>
+  <tr><td><code>descripcion</code></td><td>TEXT</td><td>nullable</td><td></td></tr>
+  <tr><td><code>estado</code></td><td>TEXT</td><td>CHECK: 'pendiente' | 'revision' | 'completado'</td><td>Estado del flujo de revisión grupal</td></tr>
+  <tr><td><code class="fk">creado_por</code></td><td>UUID</td><td><span class="fk">FK</span> → auth.users(id), nullable</td><td>Quién creó el grupo</td></tr>
+  <tr><td><code>created_at / updated_at</code></td><td>TIMESTAMPTZ</td><td></td><td></td></tr>
+</table>
+
+<h3>7. criterios_evaluacion</h3>
+<p>Criterios predefinidos usados para evaluar el desempeño de los proveedores. Tienen pesos que suman 100.</p>
+<table>
+  <tr><th>Columna</th><th>Tipo</th><th>Restricción</th><th>Descripción</th></tr>
+  <tr><td><code class="pk">id</code></td><td>UUID</td><td><span class="pk">PK</span></td><td></td></tr>
+  <tr><td><code>nombre</code></td><td>TEXT</td><td>NOT NULL</td><td>Nombre del criterio</td></tr>
+  <tr><td><code>descripcion</code></td><td>TEXT</td><td>nullable</td><td></td></tr>
+  <tr><td><code>peso</code></td><td>NUMERIC(5,2)</td><td>default 1.0</td><td>Peso ponderado en la evaluación</td></tr>
+  <tr><td><code>activo</code></td><td>BOOLEAN</td><td>default TRUE</td><td></td></tr>
+  <tr><td><code>created_at</code></td><td>TIMESTAMPTZ</td><td></td><td></td></tr>
+</table>
+<p><strong>Datos iniciales (seed):</strong></p>
+<table>
+  <tr><th>Criterio</th><th>Peso</th></tr>
+  <tr><td>Cumplimiento documental</td><td>25</td></tr>
+  <tr><td>Seguridad</td><td>25</td></tr>
+  <tr><td>Calidad</td><td>20</td></tr>
+  <tr><td>Cumplimiento contractual</td><td>20</td></tr>
+  <tr><td>Comunicación</td><td>10</td></tr>
+</table>
+
+<h3>8. evaluaciones</h3>
+<table>
+  <tr><th>Columna</th><th>Tipo</th><th>Restricción</th><th>Descripción</th></tr>
+  <tr><td><code class="pk">id</code></td><td>UUID</td><td><span class="pk">PK</span></td><td></td></tr>
+  <tr><td><code class="fk">proveedor_id</code></td><td>UUID</td><td><span class="fk">FK</span> → proveedores(id) ON DELETE CASCADE</td><td></td></tr>
+  <tr><td><code class="fk">evaluado_por</code></td><td>UUID</td><td><span class="fk">FK</span> → auth.users(id), nullable</td><td>Admin que hizo la evaluación</td></tr>
+  <tr><td><code>periodo</code></td><td>TEXT</td><td>NOT NULL</td><td>Ej: "2025-Q1", "Enero 2025"</td></tr>
+  <tr><td><code>puntaje_total</code></td><td>NUMERIC(5,2)</td><td>nullable</td><td>Puntaje final ponderado (0-100)</td></tr>
+  <tr><td><code>estado</code></td><td>TEXT</td><td>CHECK: 'borrador' | 'finalizado'</td><td></td></tr>
+  <tr><td><code>observaciones</code></td><td>TEXT</td><td>nullable</td><td>Comentarios generales</td></tr>
+  <tr><td><code>created_at / updated_at</code></td><td>TIMESTAMPTZ</td><td></td><td></td></tr>
+</table>
+
+<h3>9. detalle_evaluacion</h3>
+<p>Puntaje por criterio dentro de cada evaluación.</p>
+<table>
+  <tr><th>Columna</th><th>Tipo</th><th>Restricción</th><th>Descripción</th></tr>
+  <tr><td><code class="pk">id</code></td><td>UUID</td><td><span class="pk">PK</span></td><td></td></tr>
+  <tr><td><code class="fk">evaluacion_id</code></td><td>UUID</td><td><span class="fk">FK</span> → evaluaciones(id) ON DELETE CASCADE</td><td></td></tr>
+  <tr><td><code class="fk">criterio_id</code></td><td>UUID</td><td><span class="fk">FK</span> → criterios_evaluacion(id)</td><td></td></tr>
+  <tr><td><code>puntaje</code></td><td>NUMERIC(5,2)</td><td>CHECK: entre 0 y 100, NOT NULL</td><td>Puntaje asignado a ese criterio</td></tr>
+  <tr><td><code>observacion</code></td><td>TEXT</td><td>nullable</td><td></td></tr>
+  <tr><td><code>created_at</code></td><td>TIMESTAMPTZ</td><td></td><td></td></tr>
+</table>
+
+<h3>10. email_logs</h3>
+<p>Registro de todos los correos enviados automáticamente por el sistema.</p>
+<table>
+  <tr><th>Columna</th><th>Tipo</th><th>Restricción</th><th>Descripción</th></tr>
+  <tr><td><code class="pk">id</code></td><td>UUID</td><td><span class="pk">PK</span></td><td></td></tr>
+  <tr><td><code class="fk">personal_id</code></td><td>UUID</td><td><span class="fk">FK</span> → personal(id), nullable</td><td>Persona relacionada con el correo</td></tr>
+  <tr><td><code>tipo</code></td><td>TEXT</td><td>CHECK: 'aprobacion' | 'rechazo' | 'alerta_vencimiento'</td><td></td></tr>
+  <tr><td><code>destinatario</code></td><td>TEXT</td><td>NOT NULL</td><td>Correo destino</td></tr>
+  <tr><td><code>asunto</code></td><td>TEXT</td><td>nullable</td><td></td></tr>
+  <tr><td><code>estado</code></td><td>TEXT</td><td>default 'enviado'</td><td>'enviado' o 'error'</td></tr>
+  <tr><td><code>error_msg</code></td><td>TEXT</td><td>nullable</td><td>Detalle del error si falló</td></tr>
+  <tr><td><code>created_at</code></td><td>TIMESTAMPTZ</td><td></td><td></td></tr>
+</table>
+
+<h3>11. audit_logs</h3>
+<p>Trazabilidad completa de todas las acciones críticas del sistema. Solo los admins pueden verla.</p>
+<table>
+  <tr><th>Columna</th><th>Tipo</th><th>Restricción</th><th>Descripción</th></tr>
+  <tr><td><code class="pk">id</code></td><td>UUID</td><td><span class="pk">PK</span></td><td></td></tr>
+  <tr><td><code class="fk">user_id</code></td><td>UUID</td><td><span class="fk">FK</span> → auth.users(id) ON DELETE SET NULL</td><td>Usuario que realizó la acción</td></tr>
+  <tr><td><code>action</code></td><td>TEXT</td><td>NOT NULL</td><td>Tipo de acción (ver lista abajo)</td></tr>
+  <tr><td><code>entity_type</code></td><td>TEXT</td><td>NOT NULL</td><td>Tabla afectada (ej: 'personal')</td></tr>
+  <tr><td><code>entity_id</code></td><td>UUID</td><td>nullable</td><td>ID del registro afectado</td></tr>
+  <tr><td><code>metadata</code></td><td>JSONB</td><td>nullable</td><td>Datos adicionales en JSON</td></tr>
+  <tr><td><code>created_at</code></td><td>TIMESTAMPTZ</td><td></td><td></td></tr>
+</table>
+<p><strong>Acciones registradas:</strong> <code>personal_aprobado</code> · <code>personal_rechazado</code> · <code>personal_registrado</code> · <code>personal_bulk_aprobado</code> · <code>personal_bulk_rechazado</code> · <code>personal_correccion</code> · <code>export_excel</code> · <code>usuario_creado</code> · <code>proveedor_creado</code> · <code>evaluacion_creada</code></p>
+<p><strong>Índices:</strong> <code>idx_audit_logs_user_id</code> · <code>idx_audit_logs_created_at DESC</code> · <code>idx_audit_logs_action</code></p>
+
+<h3>12. notifications</h3>
+<p>Notificaciones in-app para cada usuario. Se muestran en el ícono de campana del navbar.</p>
+<table>
+  <tr><th>Columna</th><th>Tipo</th><th>Restricción</th><th>Descripción</th></tr>
+  <tr><td><code class="pk">id</code></td><td>UUID</td><td><span class="pk">PK</span></td><td></td></tr>
+  <tr><td><code class="fk">user_id</code></td><td>UUID</td><td><span class="fk">FK</span> → auth.users(id) ON DELETE CASCADE, NOT NULL</td><td>Usuario destinatario</td></tr>
+  <tr><td><code>type</code></td><td>TEXT</td><td>NOT NULL</td><td>Tipo de notificación</td></tr>
+  <tr><td><code>message</code></td><td>TEXT</td><td>NOT NULL</td><td>Texto de la notificación</td></tr>
+  <tr><td><code>read</code></td><td>BOOLEAN</td><td>default FALSE</td><td>Si fue leída</td></tr>
+  <tr><td><code>metadata</code></td><td>JSONB</td><td>nullable</td><td>Datos adicionales</td></tr>
+  <tr><td><code>created_at</code></td><td>TIMESTAMPTZ</td><td></td><td></td></tr>
+</table>
+<p><strong>Índices:</strong> <code>(user_id)</code> · <code>(user_id, read)</code> · <code>created_at DESC</code></p>
+
+<!-- ERD -->
+<h2 id="relaciones">Diagrama de Relaciones (ERD)</h2>
+<pre>
+auth.users (Supabase interno)
+    │
+    └──(1:1)── profiles
+                    └──(FK)── proveedores ──(1:N)──┬── personal ──(1:N)── documentos_personal
+                                                    │       └──(FK)────── vehiculos
+                                                    │       └──(FK)────── grupos_ingreso
+                                                    ├── vehiculos
+                                                    ├── grupos_ingreso ──(1:N)── personal
+                                                    └── evaluaciones ──(1:N)── detalle_evaluacion
+                                                                                    └──(FK)── criterios_evaluacion
+
+Tablas de soporte (sin relaciones directas con personal):
+    audit_logs ──(FK)── auth.users
+    notifications ──(FK)── auth.users
+    email_logs ──(FK)── personal
+</pre>
+
+<!-- RLS -->
+<h2 id="rls">Row Level Security (RLS)</h2>
+<p>Todas las tablas tienen RLS habilitado. Las políticas se evalúan automáticamente en cada query, sin importar de dónde venga la solicitud.</p>
+<table>
+  <tr><th>Tabla</th><th>Admin</th><th>Proveedor</th><th>Público</th></tr>
+  <tr><td><code>proveedores</code></td><td class="role-admin">ALL (SELECT/INSERT/UPDATE/DELETE)</td><td class="role-prov">SELECT solo su empresa</td><td>—</td></tr>
+  <tr><td><code>personal</code></td><td class="role-admin">ALL</td><td class="role-prov">SELECT e INSERT en su empresa; UPDATE solo si estado='rechazado'</td><td>—</td></tr>
+  <tr><td><code>documentos_personal</code></td><td class="role-admin">ALL</td><td class="role-prov">ALL sobre docs de su personal</td><td>—</td></tr>
+  <tr><td><code>vehiculos</code></td><td class="role-admin">ALL</td><td class="role-prov">ALL sobre sus vehículos</td><td>—</td></tr>
+  <tr><td><code>grupos_ingreso</code></td><td class="role-admin">ALL</td><td class="role-prov">SELECT e INSERT en su empresa</td><td>—</td></tr>
+  <tr><td><code>criterios_evaluacion</code></td><td class="role-admin">ALL</td><td class="role-prov">Solo SELECT</td><td>—</td></tr>
+  <tr><td><code>evaluaciones</code></td><td class="role-admin">ALL</td><td class="role-prov">Solo SELECT de las suyas</td><td>—</td></tr>
+  <tr><td><code>detalle_evaluacion</code></td><td class="role-admin">ALL</td><td class="role-prov">Solo SELECT</td><td>—</td></tr>
+  <tr><td><code>audit_logs</code></td><td class="role-admin">Solo SELECT</td><td>—</td><td>—</td></tr>
+  <tr><td><code>notifications</code></td><td class="role-admin">Sin restricción especial</td><td class="role-prov">SELECT y UPDATE solo las suyas</td><td>—</td></tr>
+  <tr><td><code>email_logs</code></td><td class="role-admin">ALL</td><td>—</td><td>—</td></tr>
+</table>
+<div class="info">El cliente <strong>admin de Supabase</strong> (SERVICE_ROLE_KEY) se usa exclusivamente en el backend y bypasea RLS. Se utiliza para operaciones privilegiadas como crear usuarios, enviar notificaciones masivas o hacer updates que el rol de usuario no permitiría.</div>
+
+<!-- TRIGGERS -->
+<h2 id="triggers">Triggers, Views y Funciones SQL</h2>
+
+<h3>Triggers</h3>
+<table>
+  <tr><th>Nombre</th><th>Tabla</th><th>Evento</th><th>Acción</th></tr>
+  <tr><td><code>on_auth_user_created</code></td><td>auth.users</td><td>AFTER INSERT</td><td>Crea registro en profiles con rol='proveedor'</td></tr>
+  <tr><td><code>trg_proveedores_updated_at</code></td><td>proveedores</td><td>BEFORE UPDATE</td><td>Actualiza el campo updated_at automáticamente</td></tr>
+  <tr><td><code>trg_calcular_vencimiento</code></td><td>documentos_personal</td><td>BEFORE INSERT/UPDATE</td><td>Si tipo es soat o tecnicomecanica, calcula fecha_vencimiento = fecha_inicio_vigencia + 1 año</td></tr>
+</table>
+
+<h3>View: documentos_por_vencer</h3>
+<p>Join de <code>documentos_personal → personal → proveedores</code>. Filtra documentos con <code>fecha_vencimiento ≤ hoy + 60 días</code>. Devuelve el campo calculado <code>dias_restantes = (fecha_vencimiento - CURRENT_DATE)::INTEGER</code>. Usada por el dashboard y el cron de alertas.</p>
+
+<h3>Función RPC: get_dashboard_kpis()</h3>
+<p>Retorna un JSON con todos los conteos del dashboard en una sola llamada eficiente.</p>
+<table>
+  <tr><th>Campo</th><th>Descripción</th></tr>
+  <tr><td><code>total_personal</code></td><td>Personal activo (no inactivo y con fecha_fin NULL o futura)</td></tr>
+  <tr><td><code>personal_aprobado</code></td><td>Estado 'aprobado' y activo</td></tr>
+  <tr><td><code>personal_pendiente</code></td><td>Estado 'pendiente', sin en_correccion, sin grupo_id</td></tr>
+  <tr><td><code>personal_rechazado</code></td><td>Estado 'rechazado'</td></tr>
+  <tr><td><code>personal_en_correccion</code></td><td>en_correccion = TRUE</td></tr>
+  <tr><td><code>grupos_pendientes</code></td><td>Grupos en estado 'pendiente'</td></tr>
+  <tr><td><code>vehiculos_activos</code></td><td>Vehículos en estado 'activo'</td></tr>
+  <tr><td><code>proveedores_activos</code></td><td>Proveedores en estado 'activo'</td></tr>
+  <tr><td><code>documentos_por_vencer</code></td><td>Resultado de la view documentos_por_vencer</td></tr>
+  <tr><td><code>personal_historial</code></td><td>Inactivos o con fecha_fin ya pasada</td></tr>
+</table>
+
+<!-- STORAGE -->
+<h2 id="storage">Storage (Almacenamiento de Archivos)</h2>
+<table>
+  <tr><th>Propiedad</th><th>Valor</th></tr>
+  <tr><td>Bucket</td><td><code>documentos</code></td></tr>
+  <tr><td>Visibilidad</td><td>Privado (requiere URL firmada para acceder)</td></tr>
+  <tr><td>Ruta de archivos</td><td><code>{proveedor_id}/{personal_id}/{tipo}_{timestamp}.{ext}</code></td></tr>
+  <tr><td>Acceso de lectura</td><td>Usuarios autenticados (signed URL con 1 hora de vigencia)</td></tr>
+  <tr><td>Acceso de escritura</td><td>Usuarios autenticados</td></tr>
+  <tr><td>Formatos permitidos</td><td>PDF únicamente (validado en frontend por firma %PDF)</td></tr>
+  <tr><td>Tamaño máximo</td><td>10 MB por archivo</td></tr>
+</table>
+
+<!-- CLIENTES SUPABASE -->
+<h2 id="clientes">Clientes Supabase</h2>
+<table>
+  <tr><th>Cliente</th><th>Archivo</th><th>Key usada</th><th>Cuándo se usa</th></tr>
+  <tr><td><strong>Browser</strong></td><td><code>src/lib/supabase/client.ts</code></td><td>ANON_KEY</td><td>Componentes con "use client". Maneja sesión en cookies del browser.</td></tr>
+  <tr><td><strong>Server</strong></td><td><code>src/lib/supabase/server.ts</code></td><td>ANON_KEY</td><td>API Routes y Server Components. Lee/escribe cookies de sesión vía Next.js.</td></tr>
+  <tr><td><strong>Admin</strong></td><td><code>src/lib/supabase/admin.ts</code></td><td>SERVICE_ROLE_KEY</td><td>Solo backend privilegiado. Bypasea RLS. Nunca expuesto al cliente.</td></tr>
+</table>
+
+<!-- API -->
+<h2 id="api">Endpoints API (17 endpoints)</h2>
+
+<h3>Personal</h3>
+<table>
+  <tr><th>Endpoint</th><th>Método</th><th>Rol</th><th>Tablas afectadas</th><th>Descripción</th></tr>
+  <tr><td><code>/api/personal</code></td><td><span class="tag tag-blue">GET</span></td><td>Ambos</td><td>personal, proveedores, documentos_personal, vehiculos</td><td>Lista personal con joins completos. Filtros: estado, proveedor_id, en_correccion</td></tr>
+  <tr><td><code>/api/personal</code></td><td><span class="tag tag-green">POST</span></td><td>Ambos</td><td>personal, vehiculos</td><td>Crea persona nueva. Si hay placa, busca o crea vehículo. Respeta UNIQUE(proveedor_id, cedula)</td></tr>
+  <tr><td><code>/api/personal/[id]</code></td><td><span class="tag tag-amber">PATCH</span></td><td>Admin / Proveedor</td><td>personal, audit_logs, notifications, email_logs</td><td>Admin: aprueba o rechaza (envía email + notificación). Proveedor: envía a corrección</td></tr>
+  <tr><td><code>/api/personal/[id]/documentos</code></td><td><span class="tag tag-green">POST</span></td><td>Ambos</td><td>documentos_personal</td><td>Sube o reemplaza un documento. Upsert por (personal_id, tipo)</td></tr>
+  <tr><td><code>/api/personal/bulk</code></td><td><span class="tag tag-amber">PATCH</span></td><td>Admin</td><td>personal, audit_logs, notifications</td><td>Aprueba o rechaza múltiples personas a la vez. Notifica a cada proveedor</td></tr>
+</table>
+
+<h3>Grupos</h3>
+<table>
+  <tr><th>Endpoint</th><th>Método</th><th>Rol</th><th>Tablas afectadas</th><th>Descripción</th></tr>
+  <tr><td><code>/api/grupos</code></td><td><span class="tag tag-blue">GET</span></td><td>Ambos</td><td>grupos_ingreso, personal, documentos_personal, vehiculos</td><td>Lista grupos con todas sus personas y documentos anidados</td></tr>
+  <tr><td><code>/api/grupos</code></td><td><span class="tag tag-green">POST</span></td><td>Ambos</td><td>grupos_ingreso, personal, vehiculos</td><td>Crea grupo con múltiples personas. Asigna grupo_id a cada persona</td></tr>
+  <tr><td><code>/api/grupos/[id]/revision</code></td><td><span class="tag tag-green">POST</span></td><td>Admin</td><td>personal, grupos_ingreso</td><td>Envía decisión (aprobado/rechazado) por persona. Cambia grupo a 'completado'. Envía email HTML con tabla resumen</td></tr>
+</table>
+
+<h3>Proveedores</h3>
+<table>
+  <tr><th>Endpoint</th><th>Método</th><th>Rol</th><th>Descripción</th></tr>
+  <tr><td><code>/api/proveedores</code></td><td><span class="tag tag-blue">GET</span></td><td>Ambos</td><td>Lista proveedores (RLS aplica automáticamente)</td></tr>
+  <tr><td><code>/api/proveedores</code></td><td><span class="tag tag-green">POST</span></td><td>Admin</td><td>Crea proveedor. Valida NIT único (retorna 409 si duplicado)</td></tr>
+  <tr><td><code>/api/proveedores/[id]</code></td><td><span class="tag tag-amber">PATCH</span></td><td>Admin</td><td>Edita datos del proveedor. Valida NIT único al cambiar</td></tr>
+</table>
+
+<h3>Usuarios</h3>
+<table>
+  <tr><th>Endpoint</th><th>Método</th><th>Descripción</th></tr>
+  <tr><td><code>/api/usuarios</code></td><td><span class="tag tag-blue">GET</span></td><td>Lista users con su proveedor asociado</td></tr>
+  <tr><td><code>/api/usuarios</code></td><td><span class="tag tag-green">POST</span></td><td>Crea usuario en auth.users + actualiza profiles + registra en audit_logs</td></tr>
+  <tr><td><code>/api/usuarios/[id]</code></td><td><span class="tag tag-amber">PATCH</span></td><td>Edita contraseña, rol o proveedor. Registra en audit_logs</td></tr>
+  <tr><td><code>/api/usuarios/[id]</code></td><td><span class="tag tag-red">DELETE</span></td><td>Elimina usuario (no permite auto-eliminación). Registra en audit_logs</td></tr>
+</table>
+
+<h3>Otros endpoints</h3>
+<table>
+  <tr><th>Endpoint</th><th>Método</th><th>Acceso</th><th>Descripción</th></tr>
+  <tr><td><code>/api/evaluaciones</code></td><td><span class="tag tag-green">POST</span></td><td>Admin</td><td>Crea evaluación con detalles por criterio. Calcula puntaje_total ponderado</td></tr>
+  <tr><td><code>/api/notifications</code></td><td><span class="tag tag-blue">GET</span></td><td>Ambos</td><td>Últimas 30 notificaciones del usuario autenticado</td></tr>
+  <tr><td><code>/api/notifications</code></td><td><span class="tag tag-amber">PATCH</span></td><td>Ambos</td><td>Marca notificaciones como leídas (individual o todas)</td></tr>
+  <tr><td><code>/api/export/personal</code></td><td><span class="tag tag-blue">GET</span></td><td>Ambos</td><td>Genera y descarga archivo .xlsx del personal filtrado. Registra en audit_logs</td></tr>
+  <tr><td><code>/api/registro-publico</code></td><td><span class="tag tag-green">POST</span></td><td>Público</td><td>Registro sin cuenta vía FormData. Sube archivos a Storage. Notifica a todos los admins</td></tr>
+  <tr><td><code>/api/admin/reset-password</code></td><td><span class="tag tag-green">POST</span></td><td>Admin</td><td>Genera enlace de recuperación de contraseña válido 1 hora</td></tr>
+</table>
+
+<!-- EMAIL -->
+<h2 id="email">Sistema de Email</h2>
+<p>Los correos se envían vía <strong>Gmail SMTP</strong> usando <code>Nodemailer</code> en el servidor. Todos son HTML con diseño de marca.</p>
+<table>
+  <tr><th>Template</th><th>Cuándo se envía</th><th>Destinatario</th></tr>
+  <tr><td>htmlAprobacion</td><td>Al aprobar una persona</td><td>Email del proveedor (+ email adicional opcional)</td></tr>
+  <tr><td>htmlRechazo</td><td>Al rechazar una persona</td><td>Email del proveedor + motivo de rechazo</td></tr>
+  <tr><td>htmlRevisionGrupal</td><td>Al completar revisión de un grupo</td><td>Email del proveedor con tabla de resultados por persona</td></tr>
+  <tr><td>Alerta vencimiento</td><td>Cron job (documentos a 30 y 60 días)</td><td>Email del proveedor</td></tr>
+  <tr><td>Reporte mensual</td><td>Cron job (1 vez al mes)</td><td>Todos los admins</td></tr>
+</table>
+<pre>// Configuración SMTP
+Host: smtp.gmail.com
+Puerto: 465 (SSL/TLS)
+Auth: GMAIL_USER + GMAIL_APP_PASSWORD (App Password de Google)</pre>
+
+<!-- CRON -->
+<h2 id="cron">Cron Jobs</h2>
+<p>Endpoints protegidos por token secreto (<code>CRON_SECRET</code>) que se ejecutan de forma programada.</p>
+
+<h3>GET /api/cron/vencimientos</h3>
+<p>Consulta <code>documentos_personal</code> buscando documentos cuya <code>fecha_vencimiento</code> coincide exactamente con hoy + 30 días o hoy + 60 días. Por cada documento encontrado, envía un correo de alerta al proveedor. Retorna <code>{ ok, procesados, enviados }</code>.</p>
+
+<h3>GET /api/cron/reporte-mensual</h3>
+<p>Genera un reporte del mes anterior con: total de registros, conteo por estado (aprobado/pendiente/rechazado), agrupación por empresa, y documentos que vencen ese mes. Lo envía por correo a todos los usuarios con <code>rol='admin'</code>.</p>
+
+<!-- AUDITORIA -->
+<h2 id="audit">Sistema de Auditoría</h2>
+<p>Todas las acciones críticas quedan registradas en <code>audit_logs</code> con el usuario, la acción, la entidad afectada y metadatos en JSONB.</p>
+<div class="tip">La función <code>logAudit()</code> en <code>src/lib/audit.ts</code> es llamada desde cada endpoint relevante. Los admins pueden ver el historial completo en <code>/dashboard/auditoria</code> (últimas 200 entradas).</div>
+
+<!-- PÁGINAS -->
+<h2 id="paginas">Páginas y Rutas</h2>
+
+<h3>Rutas Públicas (sin autenticación)</h3>
+<table>
+  <tr><th>Ruta</th><th>Archivo</th><th>Descripción</th></tr>
+  <tr><td><code>/</code></td><td>app/page.tsx</td><td>Redirección: si hay sesión → /dashboard, si no → /login</td></tr>
+  <tr><td><code>/login</code></td><td>app/login/page.tsx</td><td>Pantalla de login: imagen de tractores a la izquierda, formulario a la derecha</td></tr>
+  <tr><td><code>/auth/reset-password</code></td><td>app/auth/reset-password/page.tsx</td><td>Formulario para cambiar contraseña (llegado desde email de recuperación)</td></tr>
+  <tr><td><code>/registro-publico</code></td><td>app/registro-publico/page.tsx</td><td>Formulario de auto-registro para el personal sin necesidad de cuenta</td></tr>
+</table>
+
+<h3>Rutas Protegidas (/dashboard/*)</h3>
+<p>Todas estas rutas están bajo <code>/dashboard/layout.tsx</code> que verifica la sesión server-side y redirige a <code>/login</code> si no hay sesión activa. También incluye <code>SessionTimeout</code> (auto-logout tras 5 minutos de inactividad).</p>
+<table>
+  <tr><th>Ruta</th><th>Rol</th><th>Descripción</th><th>Datos server-side</th></tr>
+  <tr><td><code>/dashboard</code></td><td>Ambos</td><td>Dashboard con KPIs, gráficas de estados y tendencia mensual</td><td>RPC get_dashboard_kpis() + últimos 6 meses de registros</td></tr>
+  <tr><td><code>/dashboard/personal/registro</code></td><td>Ambos</td><td>Formulario de registro individual o grupal de personal</td><td>Proveedores activos (admin: todos; proveedor: solo el suyo)</td></tr>
+  <tr><td><code>/dashboard/personal/consulta</code></td><td>Ambos</td><td>Tabla de personal con filtros, aprobación/rechazo, exportación</td><td>Personal con joins: proveedor, documentos, vehículo. Solo grupo_id IS NULL</td></tr>
+  <tr><td><code>/dashboard/personal/grupos</code></td><td>Admin</td><td>Revisión de solicitudes de ingreso grupal</td><td>Grupos con personas y documentos anidados</td></tr>
+  <tr><td><code>/dashboard/personal/correcciones</code></td><td>Admin</td><td>Personal en estado de corrección pendiente</td><td>Personal con en_correccion=true y estado=pendiente</td></tr>
+  <tr><td><code>/dashboard/calendario</code></td><td>Ambos</td><td>Calendario de vencimientos de documentos (próximos 90 días)</td><td>Documentos con fecha_vencimiento en los próximos 90 días</td></tr>
+  <tr><td><code>/dashboard/evaluaciones</code></td><td>Ambos</td><td>Crear y ver evaluaciones de proveedores</td><td>Evaluaciones + proveedores + criterios activos</td></tr>
+  <tr><td><code>/dashboard/proveedores</code></td><td>Admin</td><td>Gestión de empresas contratistas</td><td>Todos los proveedores</td></tr>
+  <tr><td><code>/dashboard/usuarios</code></td><td>Admin</td><td>Gestión de usuarios del sistema</td><td>Profiles con proveedor + todos los proveedores activos</td></tr>
+  <tr><td><code>/dashboard/seguridad</code></td><td>Ambos</td><td>Configuración de MFA y generación de links de reset (admin)</td><td>—</td></tr>
+  <tr><td><code>/dashboard/auditoria</code></td><td>Admin</td><td>Log completo de acciones (últimas 200)</td><td>audit_logs con profile del usuario</td></tr>
+</table>
+
+<!-- COMPONENTES AUTH -->
+<h2 id="componentes-auth">Componentes de Autenticación</h2>
+<table>
+  <tr><th>Componente</th><th>Función</th></tr>
+  <tr><td><code>LoginPanel.tsx</code></td><td>Orquesta los 3 pasos del login: credentials → MFA → success. Maneja el estado <code>authStep</code>.</td></tr>
+  <tr><td><code>CredentialsForm.tsx</code></td><td>Paso 1: email/contraseña. Valida con Zod. Detecta si el usuario tiene MFA activo para pasar al paso 2.</td></tr>
+  <tr><td><code>MfaForm.tsx</code></td><td>Paso 2: código TOTP de 6 dígitos. Llama challenge + verify de Supabase MFA. Auto-enfoca el input.</td></tr>
+  <tr><td><code>RecoveryForm.tsx</code></td><td>Solicita email para enviar link de recuperación vía Supabase Auth.</td></tr>
+  <tr><td><code>MfaSetup.tsx</code></td><td>Activa/desactiva MFA TOTP. Muestra QR + secret. Verifica código para confirmar enrollment.</td></tr>
+  <tr><td><code>LogoutButton.tsx</code></td><td>Botón de cierre de sesión. Llama supabase.auth.signOut() y redirige a /login.</td></tr>
+  <tr><td><code>SessionTimeout.tsx</code></td><td>Auto-logout tras 5 minutos de inactividad (mousedown, scroll, keydown, etc.).</td></tr>
+  <tr><td><code>SessionAffinity.tsx</code></td><td>Sincroniza sesión entre pestañas del mismo navegador. Evita conflictos de cuenta en múltiples tabs.</td></tr>
+  <tr><td><code>EkLogo.tsx</code></td><td>Componente de marca para pantallas de auth (badge EK + nombre + subtítulo).</td></tr>
+  <tr><td><code>EkFooterIcons.tsx</code></td><td>Íconos decorativos en el footer de la pantalla de login.</td></tr>
+</table>
+
+<!-- COMPONENTES DASHBOARD -->
+<h2 id="componentes-dash">Componentes de Dashboard</h2>
+<table>
+  <tr><th>Componente</th><th>Función</th></tr>
+  <tr><td><code>DashboardShell.tsx</code></td><td>Layout general del dashboard: sidebar + navbar + contenido. Maneja el drawer móvil.</td></tr>
+  <tr><td><code>DashboardNavbar.tsx</code></td><td>Barra superior: logo, email del usuario, campana de notificaciones, botón de logout.</td></tr>
+  <tr><td><code>DashboardSidebar.tsx</code></td><td>Menú lateral con links según el rol. En móvil se convierte en drawer con overlay.</td></tr>
+  <tr><td><code>ChartBarEstados.tsx</code></td><td>Gráfica de barras (Recharts) con distribución de estados del personal.</td></tr>
+  <tr><td><code>ChartAreaMes.tsx</code></td><td>Gráfica de área (Recharts) con registros de los últimos 6 meses.</td></tr>
+  <tr><td><code>CalendarioVencimientos.tsx</code></td><td>Vista de documentos próximos a vencer con filtros de 7/30/90 días y colores por urgencia.</td></tr>
+  <tr><td><code>AdminResetPanel.tsx</code></td><td>Panel admin para generar links de reset de contraseña para cualquier usuario.</td></tr>
+  <tr><td><code>NotificationBell.tsx</code></td><td>Campana con contador de no leídas. Dropdown con lista de notificaciones. Polling cada 30 segundos.</td></tr>
+</table>
+
+<!-- COMPONENTES PERSONAL -->
+<h2 id="componentes-personal">Componentes de Personal y Gestión</h2>
+<table>
+  <tr><th>Componente</th><th>Props principales</th><th>Función</th></tr>
+  <tr><td><code>RegistroPersonalForm.tsx</code></td><td>proveedores, rol, proveedorIdFijo</td><td>Formulario dual (individual / grupal). Sube documentos PDF. Valida firma %PDF y tamaño ≤10MB.</td></tr>
+  <tr><td><code>ConsultaPersonalClient.tsx</code></td><td>personal, proveedores, rol, proveedorIdActual</td><td>Tabla compleja con tabs, filtros, búsqueda, expansión por fila, aprobación individual y masiva, exportación Excel.</td></tr>
+  <tr><td><code>GruposIngresoClient.tsx</code></td><td>grupos</td><td>Lista grupos pendientes. Por grupo, muestra todas las personas con botones de aprobación/rechazo individual antes de enviar decisión grupal.</td></tr>
+  <tr><td><code>CorreccionesClient.tsx</code></td><td>personal</td><td>Muestra personal en corrección agrupado por empresa. Permite aprobar o rechazar nuevamente.</td></tr>
+  <tr><td><code>RegistroPublicoForm.tsx</code></td><td>proveedores</td><td>Formulario público de auto-registro. Envía FormData al API sin autenticación.</td></tr>
+  <tr><td><code>EvaluacionesClient.tsx</code></td><td>evaluaciones, proveedores, criterios, rol</td><td>Lista y crea evaluaciones de proveedores. Calcula puntaje ponderado en tiempo real.</td></tr>
+  <tr><td><code>ProveedoresClient.tsx</code></td><td>proveedores</td><td>CRUD de empresas con panel lateral de usuarios asociados.</td></tr>
+  <tr><td><code>UsuariosClient.tsx</code></td><td>usuarios, proveedores, currentUserId</td><td>CRUD de usuarios con validaciones (no auto-eliminación). Genera links de reset.</td></tr>
+</table>
+
+<!-- COMPONENTES UI -->
+<h2 id="componentes-ui">Componentes UI Reutilizables</h2>
+<table>
+  <tr><th>Componente</th><th>Descripción</th></tr>
+  <tr><td><code>InputField.tsx</code></td><td>Input genérico compatible con react-hook-form. Soporta label, error, helperText, rightElement (ej: ojo para password). ForwardRef.</td></tr>
+  <tr><td><code>AlertMessage.tsx</code></td><td>Caja de alerta con tipos: error (rojo), success (verde), info (azul), warning (ámbar).</td></tr>
+  <tr><td><code>Skeleton.tsx</code></td><td>Placeholders de carga: Skeleton genérico, SkeletonCard, SkeletonRow, SkeletonTable. Animación pulse de Tailwind.</td></tr>
+</table>
+
+<!-- AUTENTICACIÓN -->
+<h2 id="autenticacion">Flujo Completo de Autenticación</h2>
+
+<h3>Login sin MFA</h3>
+<div class="flow">
+  <div class="flow-step">Usuario ingresa email + contraseña</div><div class="flow-arrow">→</div>
+  <div class="flow-step">supabase.auth.signInWithPassword()</div><div class="flow-arrow">→</div>
+  <div class="flow-step">Verifica si tiene MFA activo</div><div class="flow-arrow">→</div>
+  <div class="flow-step">Sin MFA: redirige a /dashboard</div>
+</div>
+
+<h3>Login con MFA activo</h3>
+<div class="flow">
+  <div class="flow-step">Credenciales correctas</div><div class="flow-arrow">→</div>
+  <div class="flow-step">Detecta factor TOTP activo</div><div class="flow-arrow">→</div>
+  <div class="flow-step">Muestra MfaForm</div><div class="flow-arrow">→</div>
+  <div class="flow-step">mfa.challenge() + mfa.verify()</div><div class="flow-arrow">→</div>
+  <div class="flow-step">Redirige a /dashboard</div>
+</div>
+
+<h3>Activar MFA (en /dashboard/seguridad)</h3>
+<div class="flow">
+  <div class="flow-step">Click "Activar MFA"</div><div class="flow-arrow">→</div>
+  <div class="flow-step">mfa.enroll() → genera QR + secret</div><div class="flow-arrow">→</div>
+  <div class="flow-step">Usuario escanea QR</div><div class="flow-arrow">→</div>
+  <div class="flow-step">Ingresa código de verificación</div><div class="flow-arrow">→</div>
+  <div class="flow-step">challenge() + verify() → MFA activo</div>
+</div>
+
+<h3>Recuperación de contraseña</h3>
+<div class="flow">
+  <div class="flow-step">Ingresa email en RecoveryForm</div><div class="flow-arrow">→</div>
+  <div class="flow-step">resetPasswordForEmail()</div><div class="flow-arrow">→</div>
+  <div class="flow-step">Email con link → /auth/reset-password</div><div class="flow-arrow">→</div>
+  <div class="flow-step">updateUser({ password })</div><div class="flow-arrow">→</div>
+  <div class="flow-step">Redirige a /login</div>
+</div>
+
+<!-- MIDDLEWARE -->
+<h2 id="middleware">Middleware de Protección de Rutas</h2>
+<p>El archivo <code>src/middleware.ts</code> intercepta todas las peticiones y gestiona las sesiones.</p>
+<table>
+  <tr><th>Ruta / Patrón</th><th>Comportamiento</th></tr>
+  <tr><td>/login, /auth/*, /registro-publico</td><td><strong>Públicas:</strong> pasan sin verificación. Si el usuario YA tiene sesión y va a /login, redirige a /dashboard.</td></tr>
+  <tr><td>/dashboard/* y todas las demás</td><td><strong>Protegidas:</strong> si no hay sesión activa, redirige a /login.</td></tr>
+  <tr><td>Archivos estáticos (_next, images, fonts)</td><td>Excluidos del matcher — no pasan por el middleware.</td></tr>
+</table>
+<div class="info">El middleware refresca la sesión automáticamente en cada request (decodifica el JWT localmente sin hacer llamadas HTTP a Supabase, lo que lo hace muy eficiente).</div>
+
+<!-- NOTIFICACIONES -->
+<h2 id="notificaciones">Sistema de Notificaciones In-App</h2>
+<p>Las notificaciones se crean desde el backend y se muestran en la campana del navbar. El componente <code>NotificationBell.tsx</code> hace polling cada 30 segundos.</p>
+<table>
+  <tr><th>Tipo de notificación</th><th>Cuándo se crea</th><th>A quién</th></tr>
+  <tr><td>personal_pendiente</td><td>Registro público enviado</td><td>Todos los admins</td></tr>
+  <tr><td>personal_aprobado</td><td>Admin aprueba una persona</td><td>Usuario proveedor de esa empresa</td></tr>
+  <tr><td>personal_rechazado</td><td>Admin rechaza una persona</td><td>Usuario proveedor de esa empresa</td></tr>
+  <tr><td>grupo_pendiente</td><td>Proveedor crea un grupo</td><td>Todos los admins</td></tr>
+  <tr><td>correccion_enviada</td><td>Proveedor envía a corrección</td><td>Todos los admins</td></tr>
+</table>
+
+<!-- PWA -->
+<h2 id="pwa">Progressive Web App (PWA)</h2>
+<p>El proyecto está configurado como PWA con soporte offline via Service Worker generado por <code>@ducanh2912/next-pwa</code>.</p>
+<table>
+  <tr><th>Característica</th><th>Detalle</th></tr>
+  <tr><td>Instalable</td><td>Sí (manifest.json con íconos y tema #7ab648)</td></tr>
+  <tr><td>Soporte offline</td><td>Sí (Workbox cachea assets estáticos)</td></tr>
+  <tr><td>Cache en navegación</td><td>Habilitado (aggressive frontend caching)</td></tr>
+  <tr><td>Reload al reconectar</td><td>Sí (reloadOnOnline: true)</td></tr>
+  <tr><td>En desarrollo</td><td>Deshabilitado (solo producción)</td></tr>
+  <tr><td>Apple Web App</td><td>Configurado (capable, título, status bar)</td></tr>
+  <tr><td>Theme color</td><td>#7ab648 (verde EK)</td></tr>
+</table>
+
+<!-- ENV -->
+<h2 id="env">Variables de Entorno</h2>
+<table>
+  <tr><th>Variable</th><th>Expuesta al cliente</th><th>Uso</th></tr>
+  <tr><td><code>NEXT_PUBLIC_SUPABASE_URL</code></td><td>Sí</td><td>URL del proyecto Supabase</td></tr>
+  <tr><td><code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code></td><td>Sí</td><td>Key pública para el cliente browser y server</td></tr>
+  <tr><td><code>SUPABASE_SERVICE_ROLE_KEY</code></td><td>No</td><td>Key secreta para el cliente admin (bypasea RLS)</td></tr>
+  <tr><td><code>GMAIL_USER</code></td><td>No</td><td>Correo Gmail para envío de emails</td></tr>
+  <tr><td><code>GMAIL_APP_PASSWORD</code></td><td>No</td><td>App Password de Google (no es la contraseña normal)</td></tr>
+  <tr><td><code>CRON_SECRET</code></td><td>No</td><td>Token Bearer para autenticar los cron jobs</td></tr>
+  <tr><td><code>MFA_ISSUER</code></td><td>No</td><td>Nombre que aparece en la app autenticadora ("EasyKontrol")</td></tr>
+  <tr><td><code>NEXTAUTH_URL</code></td><td>No</td><td>URL base de la app (ej: https://easy-kontrol.com)</td></tr>
+</table>
+
+<!-- TIPOS -->
+<h2 id="tipos">Tipos TypeScript (src/types/index.ts)</h2>
+
+<h3>Tipos de Autenticación</h3>
+<table>
+  <tr><th>Tipo / Interface</th><th>Campos</th></tr>
+  <tr><td><code>LoginFormValues</code></td><td>username, password, mfaCode?</td></tr>
+  <tr><td><code>RecoveryFormValues</code></td><td>email</td></tr>
+  <tr><td><code>ApiResponse&lt;T&gt;</code></td><td>success, message, data?</td></tr>
+  <tr><td><code>AuthStep</code></td><td>"credentials" | "mfa" | "success"</td></tr>
+  <tr><td><code>MfaSetupData</code></td><td>otpauthUrl, secret</td></tr>
+</table>
+
+<h3>Tipos de Dominio (Enums)</h3>
+<table>
+  <tr><th>Tipo</th><th>Valores</th></tr>
+  <tr><td><code>Rol</code></td><td>"admin" | "proveedor"</td></tr>
+  <tr><td><code>EstadoPersonal</code></td><td>"pendiente" | "aprobado" | "rechazado" | "inactivo"</td></tr>
+  <tr><td><code>TipoDocumento</code></td><td>"cedula" | "licencia" | "arl" | "soat" | "tecnicomecanica"</td></tr>
+  <tr><td><code>EstadoProveedor</code></td><td>"activo" | "inactivo" | "suspendido"</td></tr>
+  <tr><td><code>EstadoEvaluacion</code></td><td>"borrador" | "finalizado"</td></tr>
+  <tr><td><code>EstadoGrupo</code></td><td>"pendiente" | "revision" | "completado"</td></tr>
+</table>
+
+<h3>Interfaces de Entidades</h3>
+<table>
+  <tr><th>Interface</th><th>Campos principales</th><th>Relaciones opcionales</th></tr>
+  <tr><td><code>Profile</code></td><td>id, username?, full_name?, mfa_enabled, rol, proveedor_id?</td><td>—</td></tr>
+  <tr><td><code>Proveedor</code></td><td>id, nombre, nit, email?, telefono?, estado, created_by</td><td>—</td></tr>
+  <tr><td><code>Personal</code></td><td>id, proveedor_id, nombres, cedula, estado, fecha_entrada?, fecha_fin?, en_correccion</td><td>proveedor?, documentos?, vehiculo?</td></tr>
+  <tr><td><code>DocumentoPersonal</code></td><td>id, personal_id, tipo, url, fecha_inicio_vigencia?, fecha_vencimiento?, alerta_60_enviada</td><td>—</td></tr>
+  <tr><td><code>Vehiculo</code></td><td>id, proveedor_id, placa, marca?, modelo?, tipo?, estado</td><td>—</td></tr>
+  <tr><td><code>GrupoIngreso</code></td><td>id, proveedor_id, nombre, descripcion?, estado, creado_por?</td><td>proveedor?, personas?</td></tr>
+  <tr><td><code>CriterioEvaluacion</code></td><td>id, nombre, descripcion?, peso, activo</td><td>—</td></tr>
+  <tr><td><code>DetalleEvaluacion</code></td><td>id, evaluacion_id, criterio_id, puntaje, observacion?</td><td>criterio?</td></tr>
+  <tr><td><code>Evaluacion</code></td><td>id, proveedor_id, periodo, puntaje_total?, estado, observaciones?</td><td>proveedor?, detalles?</td></tr>
+  <tr><td><code>DashboardKPIs</code></td><td>total_personal, personal_aprobado, personal_pendiente, personal_rechazado, personal_en_correccion, grupos_pendientes, vehiculos_activos, proveedores_activos, documentos_por_vencer, personal_historial</td><td>—</td></tr>
+</table>
+
+<!-- CIERRE -->
+<div style="margin-top:60px; padding:32px; background:#1a2332; border-radius:16px; color:#94a3b8; text-align:center;">
+  <div style="margin-bottom:8px;"><span style="background:#7ab648;color:#fff;font-weight:900;padding:4px 10px;border-radius:6px;font-size:13px;">EK</span></div>
+  <strong style="color:#fff;">Easy Kontrol — Documentación Técnica Completa</strong><br>
+  <span style="font-size:12px;">Generada con Claude Code · 2026</span>
+</div>
+
+</main>
+
+<!-- Botón exportar PDF -->
+<button id="btn-pdf" onclick="exportarPDF()">
+  <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0-3-3m3 3 3-3M3 17v2a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/><rect x="3" y="3" width="18" height="10" rx="2"/></svg>
+  Exportar PDF
+</button>
+
+<script>
+function exportarPDF() {
+  // Instrucciones para guardar como PDF en el diálogo de impresión
+  const instrucciones = document.createElement('div');
+  instrucciones.id = 'print-tip';
+  instrucciones.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#1a2332;color:#fff;text-align:center;padding:10px;font-size:13px;z-index:9999;font-family:Segoe UI,Arial,sans-serif;';
+  instrucciones.innerHTML = '📄 En el diálogo que se abre: selecciona <strong>Guardar como PDF</strong> como destino · Activa <strong>"Gráficos de fondo"</strong> en Más ajustes para conservar los colores';
+  document.body.appendChild(instrucciones);
+
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => instrucciones.remove(), 3000);
+  }, 400);
+}
+</script>
+
+</body>
+</html>

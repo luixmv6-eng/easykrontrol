@@ -22,7 +22,9 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
-    const origin = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+    const origin = process.env.NEXT_PUBLIC_SITE_URL
+      ?? process.env.NEXTAUTH_URL
+      ?? new URL(request.url).origin;
 
     /*
      * generateLink con type "recovery" genera un enlace mágico de un solo uso.
