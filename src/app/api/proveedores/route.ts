@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { nombre, nit, email, telefono, direccion } = body;
+  const { nombre, nit, email, telefono, direccion, representante } = body;
 
   if (!nombre?.trim() || !nit?.trim()) {
     return NextResponse.json({ error: "Nombre y NIT son obligatorios" }, { status: 400 });
@@ -45,6 +45,7 @@ export async function POST(request: Request) {
       email: email?.trim() || null,
       telefono: telefono?.trim() || null,
       direccion: direccion?.trim() || null,
+      representante: representante?.trim() || null,
       estado: "activo",
       created_by: session.user.id,
     })

@@ -62,6 +62,7 @@ export interface Proveedor {
   email: string | null;
   telefono: string | null;
   direccion: string | null;
+  representante: string | null;
   estado: EstadoProveedor;
   created_by: string;
   created_at: string;

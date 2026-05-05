@@ -479,14 +479,29 @@ export default function RegistroPersonalForm({ proveedores, rol, proveedorIdFijo
               <>
                 <p className="text-[12px] text-gray-400">Si el personal ingresa con vehículo, completa estos datos.</p>
                 <div className="grid grid-cols-2 gap-3">
-                  {(["placa", "marca", "modelo", "tipo"] as const).map((f) => (
+                  {(["placa", "marca", "modelo"] as const).map((f) => (
                     <div key={f}>
                       <label className="block text-[12px] font-medium text-gray-600 mb-1 capitalize">{f === "placa" ? "Placa *" : f.charAt(0).toUpperCase() + f.slice(1)}</label>
                       <input type="text" value={vehiculoData[f]} onChange={(e) => setVehiculoData((prev) => ({ ...prev, [f]: f === "placa" ? e.target.value.toUpperCase() : e.target.value }))}
-                        placeholder={f === "placa" ? "ABC123" : f === "tipo" ? "Ej: Camioneta" : ""}
+                        placeholder={f === "placa" ? "ABC123" : ""}
                         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400" />
                     </div>
                   ))}
+                  <div>
+                    <label className="block text-[12px] font-medium text-gray-600 mb-1">Tipo</label>
+                    <select
+                      value={vehiculoData.tipo}
+                      onChange={(e) => setVehiculoData((prev) => ({ ...prev, tipo: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400"
+                    >
+                      <option value="">— Seleccionar —</option>
+                      <option value="Camioneta">Camioneta</option>
+                      <option value="Moto">Moto</option>
+                      <option value="Bus">Bus</option>
+                      <option value="Transporte amarillo">Transporte amarillo</option>
+                      <option value="Tractor">Tractor</option>
+                    </select>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <p className="text-[12px] font-semibold text-gray-500 uppercase tracking-wide">Documentos del vehículo</p>
@@ -620,13 +635,28 @@ export default function RegistroPersonalForm({ proveedores, rol, proveedorIdFijo
               {curConVehiculo && (
                 <div className="mt-3 space-y-3 pl-4 border-l-2 border-ek-100">
                   <div className="grid grid-cols-2 gap-2">
-                    {(["placa", "marca", "modelo", "tipo"] as const).map((f) => (
+                    {(["placa", "marca", "modelo"] as const).map((f) => (
                       <div key={f}>
                         <label className="block text-[12px] font-medium text-gray-600 mb-1 capitalize">{f === "placa" ? "Placa *" : f.charAt(0).toUpperCase() + f.slice(1)}</label>
                         <input type="text" value={curVehiculo[f]} onChange={(e) => setCurVehiculo((prev) => ({ ...prev, [f]: f === "placa" ? e.target.value.toUpperCase() : e.target.value }))}
                           className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-ek-400" />
                       </div>
                     ))}
+                    <div>
+                      <label className="block text-[12px] font-medium text-gray-600 mb-1">Tipo</label>
+                      <select
+                        value={curVehiculo.tipo}
+                        onChange={(e) => setCurVehiculo((prev) => ({ ...prev, tipo: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-ek-400"
+                      >
+                        <option value="">— Seleccionar —</option>
+                        <option value="Camioneta">Camioneta</option>
+                        <option value="Moto">Moto</option>
+                        <option value="Bus">Bus</option>
+                        <option value="Transporte amarillo">Transporte amarillo</option>
+                        <option value="Tractor">Tractor</option>
+                      </select>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <p className="text-[12px] font-semibold text-gray-500 uppercase tracking-wide">Documentos del vehículo</p>

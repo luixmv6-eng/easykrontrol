@@ -2,23 +2,12 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
-  Users, CheckCircle, Clock, AlertTriangle, Truck, Building2, UsersRound, Wrench, Archive,
+  Clock, AlertTriangle, UsersRound, Wrench,
 } from "lucide-react";
 import type { DashboardKPIs } from "@/types";
 import { ChartBarEstados } from "@/components/dashboard/ChartBarEstados";
 import { ChartAreaMes } from "@/components/dashboard/ChartAreaMes";
-
-function KPICard({ label, value, icon: Icon, color }: { label: string; value: number; icon: React.ElementType; color: string }) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider">{label}</p>
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${color}`}><Icon size={15} /></div>
-      </div>
-      <p className="text-3xl font-bold text-gray-800">{value}</p>
-    </div>
-  );
-}
+import { KPICardsGrid } from "@/components/dashboard/KPICardsGrid";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -60,17 +49,7 @@ export default async function DashboardPage() {
         <p className="text-[13px] text-gray-400 mt-0.5">Resumen general del sistema</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <KPICard label="Personal activo"            value={kpis.total_personal}          icon={Users}      color="bg-blue-50 text-blue-500" />
-        <KPICard label="Personal aprobado"          value={kpis.personal_aprobado}        icon={CheckCircle} color="bg-green-50 text-green-500" />
-        <KPICard label="Pendientes de aprobación"   value={kpis.personal_pendiente}       icon={Clock}      color="bg-amber-50 text-amber-500" />
-        <KPICard label="Docs por vencer (60 días)"  value={kpis.documentos_por_vencer}    icon={AlertTriangle} color="bg-red-50 text-red-500" />
-        <KPICard label="Vehículos activos"          value={kpis.vehiculos_activos}        icon={Truck}      color="bg-purple-50 text-purple-500" />
-        <KPICard label="Proveedores activos"        value={kpis.proveedores_activos}      icon={Building2}  color="bg-ek-50 text-ek-600" />
-        {esAdmin && <KPICard label="Ingresos grupales pendientes" value={kpis.grupos_pendientes} icon={UsersRound} color="bg-indigo-50 text-indigo-500" />}
-        {esAdmin && <KPICard label="En corrección"  value={kpis.personal_en_correccion}   icon={Wrench}     color="bg-orange-50 text-orange-500" />}
-        <KPICard label="En historial"               value={kpis.personal_historial}       icon={Archive}    color="bg-gray-100 text-gray-400" />
-      </div>
+      <KPICardsGrid kpis={kpis} esAdmin={esAdmin} />
 
       {/* Alertas */}
       {kpis.documentos_por_vencer > 0 && (

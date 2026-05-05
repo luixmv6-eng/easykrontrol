@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   Plus, Building2, Edit2, CheckCircle, XCircle, Trash2,
-  ChevronDown, ChevronUp, Phone, Mail, MapPin, Hash,
+  ChevronDown, ChevronUp, Phone, Mail, MapPin, Hash, User,
   Users, UserPlus, UserX, Loader2, ShieldCheck,
 } from "lucide-react";
 import clsx from "clsx";
@@ -24,7 +24,7 @@ const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
   suspendido: { label: "Suspendido", cls: "bg-red-100 text-red-600" },
 };
 
-const emptyForm = { nombre: "", nit: "", email: "", telefono: "", direccion: "" };
+const emptyForm = { nombre: "", nit: "", email: "", telefono: "", direccion: "", representante: "" };
 
 // ── Panel de usuarios de una empresa ──────────────────
 function UsuariosPanel({ empresa }: { empresa: Proveedor }) {
@@ -269,6 +269,7 @@ export function ProveedoresClient({ proveedores: inicial }: { proveedores: Prove
       email: p.email ?? "",
       telefono: p.telefono ?? "",
       direccion: p.direccion ?? "",
+      representante: p.representante ?? "",
     });
     setError("");
     setShowForm(true);
@@ -451,6 +452,18 @@ export function ProveedoresClient({ proveedores: inicial }: { proveedores: Prove
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400"
                 />
               </div>
+              <div className="md:col-span-2">
+                <label className="block text-[12px] font-medium text-gray-600 mb-1">
+                  Representante legal
+                </label>
+                <input
+                  type="text"
+                  value={form.representante}
+                  onChange={(e) => setForm({ ...form, representante: e.target.value })}
+                  placeholder="Ej: Carlos Andrés García"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400"
+                />
+              </div>
             </div>
 
             {error && (
@@ -544,6 +557,12 @@ export function ProveedoresClient({ proveedores: inicial }: { proveedores: Prove
                       <div className="flex items-center gap-2">
                         <MapPin size={13} className="text-gray-400 shrink-0" />
                         <span>{p.direccion}</span>
+                      </div>
+                    )}
+                    {p.representante && (
+                      <div className="flex items-center gap-2">
+                        <User size={13} className="text-gray-400 shrink-0" />
+                        <span><strong>Rep. legal:</strong> {p.representante}</span>
                       </div>
                     )}
                   </div>

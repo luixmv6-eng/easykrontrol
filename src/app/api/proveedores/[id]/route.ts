@@ -20,7 +20,7 @@ export async function PATCH(
   }
 
   const body = await request.json();
-  const { nombre, nit, email, telefono, direccion, estado } = body;
+  const { nombre, nit, email, telefono, direccion, representante, estado } = body;
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (nombre !== undefined) updates.nombre = nombre.trim();
@@ -28,6 +28,7 @@ export async function PATCH(
   if (email !== undefined) updates.email = email?.trim() || null;
   if (telefono !== undefined) updates.telefono = telefono?.trim() || null;
   if (direccion !== undefined) updates.direccion = direccion?.trim() || null;
+  if (representante !== undefined) updates.representante = representante?.trim() || null;
   if (estado !== undefined) updates.estado = estado;
 
   const { data, error } = await supabase

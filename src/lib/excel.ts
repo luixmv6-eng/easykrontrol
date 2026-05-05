@@ -36,6 +36,7 @@ export function generarExcelPersonal(personal: Personal[]): Buffer {
         Empresa: p.proveedor?.nombre ?? "-",
         NIT: p.proveedor?.nit ?? "-",
         Estado: ESTADO_LABELS[p.estado] ?? p.estado,
+        "Motivo de rechazo": p.motivo_rechazo ?? "-",
         "En corrección": p.en_correccion ? "Sí" : "No",
         "Fecha entrada": p.fecha_entrada ? new Date(p.fecha_entrada).toLocaleDateString("es-CO") : "-",
         "Fecha fin": p.fecha_fin ? new Date(p.fecha_fin).toLocaleDateString("es-CO") : "-",
@@ -62,7 +63,7 @@ export function generarExcelPersonal(personal: Personal[]): Buffer {
 
   ws["!cols"] = [
     { wch: 30 }, { wch: 14 }, { wch: 30 }, { wch: 14 }, { wch: 12 },
-    { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 25 }, { wch: 14 },
+    { wch: 30 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 25 }, { wch: 14 },
     { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 14 },
   ];
 
