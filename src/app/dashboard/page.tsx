@@ -41,7 +41,7 @@ export default async function DashboardPage() {
   })();
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-4 md:space-y-6 max-w-4xl">
       <div>
         <h1 className="text-xl font-bold text-gray-800">Panel de control</h1>
         <p className="text-[13px] text-gray-400 mt-0.5">Resumen general del sistema</p>

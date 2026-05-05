@@ -27,7 +27,7 @@ export function DashboardShell({ email, rol, children }: DashboardShellProps) {
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
         />
-        <main className="flex-1 p-4 md:p-8 overflow-auto">
+        <main className="flex-1 p-3 sm:p-4 md:p-8 overflow-auto min-w-0">
           {children}
         </main>
       </div>

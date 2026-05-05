@@ -68,6 +68,46 @@ body {
   animation: spin 0.7s linear infinite;
 }
 
+/* ── PWA: Safe area para iOS (notch / Dynamic Island) ── */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
+/* Padding para la barra sticky del navbar en iOS */
+.safe-top {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+/* Área segura inferior (home indicator de iPhone) */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Modo standalone: agrega safe area al navbar */
+@media all and (display-mode: standalone) {
+  nav[class*="sticky"] {
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+}
+
+/* ── PWA: Deshabilitar selección de texto en botones ─── */
+button, a {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ── Touch targets mínimos (44px WCAG) ──────────────── */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* ── Scrollbar personalizada (opcional) ──────────────── */
 ::-webkit-scrollbar {
   width: 6px;

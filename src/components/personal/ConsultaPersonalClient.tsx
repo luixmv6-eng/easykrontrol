@@ -296,10 +296,10 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
       </div>
 
       {/* Tabs */}
-      <div className="flex bg-gray-100 rounded-xl p-1 gap-1 w-fit">
+      <div className="flex bg-gray-100 rounded-xl p-1 gap-1 w-full sm:w-fit">
         {([["activos", "Activos", activos.length], ["historial", "Historial", historial.length]] as const).map(([t, label, count]) => (
           <button key={t} onClick={() => { setTab(t); setFiltroEstado(""); setBusqueda(""); }}
-            className={clsx("flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-colors",
+            className={clsx("flex-1 sm:flex-none flex items-center justify-center sm:justify-start gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-colors",
               tab === t ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
             )}>
             {t === "activos" ? <CheckCircle size={13} /> : <Archive size={13} />}
@@ -386,7 +386,7 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
 
           return (
             <div key={p.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
+              <div className="flex items-center justify-between px-3 sm:px-5 py-4 hover:bg-gray-50 transition-colors">
               {rol === "admin" && p.estado === "pendiente" && (
                 <button onClick={() => toggleSeleccion(p.id)} className="mr-3 shrink-0 text-gray-400 hover:text-ek-600 transition-colors">
                   {seleccionados.has(p.id) ? <CheckSquare size={16} className="text-ek-600" /> : <Square size={16} />}
@@ -427,7 +427,7 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
               </div>
 
               {isOpen && (
-                <div className="border-t border-gray-100 px-5 py-4 space-y-4">
+                <div className="border-t border-gray-100 px-3 sm:px-5 py-4 space-y-4">
                   {/* Docs persona */}
                   <DocSection title="Documentos del personal" tipos={tiposRequeridos} docs={p.documentos ?? []} onVer={verDoc} />
                   {/* Docs vehículo */}
@@ -474,8 +474,8 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
 
       {/* Modal aprobar/rechazar */}
       {modal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl p-6 w-full sm:max-w-sm space-y-4">
             <h3 className="text-[15px] font-bold text-gray-800">
               {modal.accion === "aprobar" ? "Confirmar aprobación" : "Confirmar rechazo"}
             </h3>
@@ -518,8 +518,8 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
 
       {/* Modal aprobación/rechazo masivo */}
       {bulkModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl p-6 w-full sm:max-w-sm space-y-4">
             <h3 className="text-[15px] font-bold text-gray-800">
               {bulkModal === "aprobar" ? `Aprobar ${seleccionados.size} persona(s)` : `Rechazar ${seleccionados.size} persona(s)`}
             </h3>
@@ -550,8 +550,8 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
 
       {/* Modal corrección proveedor */}
       {corrModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl p-6 w-full sm:max-w-lg space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-[15px] font-bold text-gray-800">Corregir documentos</h3>
