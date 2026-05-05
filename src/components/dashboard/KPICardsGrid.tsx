@@ -1,102 +1,215 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Users, CheckCircle, Clock, AlertTriangle, Truck, Building2,
-  UsersRound, Wrench, Archive, ChevronDown, ChevronUp, ArrowRight,
+  UsersRound, Wrench, Archive, X, ArrowRight, Loader2,
 } from "lucide-react";
 import type { DashboardKPIs } from "@/types";
 
-interface CardDetail {
-  description: string;
-  extra?: string;
-  href?: string;
-  hrefLabel?: string;
-}
+type Fila = { empresa: string; total: number };
 
-interface KPICardDef {
+interface CardDef {
   key: string;
   label: string;
   value: number;
   icon: React.ElementType;
   color: string;
-  detail: CardDetail;
+  barColor: string;
+  href: string;
+  hrefLabel: string;
+  esProveedores?: boolean;
 }
 
-function KPICard({ card, isOpen, onToggle }: {
-  card: KPICardDef;
-  isOpen: boolean;
-  onToggle: () => void;
-}) {
+// ── Card simple ────────────────────────────────────────
+function KPICard({ card, onClick }: { card: CardDef; onClick: () => void }) {
   const Icon = card.icon;
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full p-5 text-left hover:bg-gray-50/50 transition-colors"
-      >
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider leading-tight pr-2">
-            {card.label}
-          </p>
-          <div className="flex items-center gap-1 shrink-0">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${card.color}`}>
-              <Icon size={15} />
-            </div>
-            {isOpen
-              ? <ChevronUp size={12} className="text-gray-300" />
-              : <ChevronDown size={12} className="text-gray-300" />}
-          </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 text-left w-full hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 active:scale-[0.98]"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider leading-tight pr-2">
+          {card.label}
+        </p>
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${card.color}`}>
+          <Icon size={15} />
         </div>
-        <p className="text-3xl font-bold text-gray-800">{card.value}</p>
-      </button>
+      </div>
+      <p className="text-3xl font-bold text-gray-800">{card.value}</p>
+      <p className="text-[11px] text-gray-300 mt-1.5">Toca para ver desglose</p>
+    </button>
+  );
+}
 
-      {isOpen && (
-        <div className="border-t border-gray-100 px-5 py-3 bg-gray-50/60 space-y-2">
-          <p className="text-[12px] text-gray-500 leading-relaxed">{card.detail.description}</p>
-          {card.detail.extra && (
-            <p className="text-[11px] text-gray-400">{card.detail.extra}</p>
+// ── Modal de detalle ───────────────────────────────────
+function DetalleModal({
+  card,
+  onClose,
+}: {
+  card: CardDef;
+  onClose: () => void;
+}) {
+  const [filas, setFilas] = useState<Fila[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const Icon = card.icon;
+
+  const cargar = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/dashboard/detalle?tipo=${card.key}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Error al cargar");
+      setFilas(json.data ?? []);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Error inesperado");
+    } finally {
+      setLoading(false);
+    }
+  }, [card.key]);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  // Cerrar con Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  const maximo = filas && filas.length > 0 ? Math.max(...filas.map((f) => f.total)) : 1;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-150">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${card.color}`}>
+              <Icon size={18} />
+            </div>
+            <div>
+              <h2 className="text-[15px] font-bold text-gray-800 leading-tight">{card.label}</h2>
+              <p className="text-[12px] text-gray-400">
+                {card.value} {card.value === 1 ? "registro" : "registros"} en total
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            aria-label="Cerrar"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Cuerpo */}
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-10 gap-3">
+              <Loader2 size={22} className="animate-spin text-gray-300" />
+              <p className="text-[12px] text-gray-400">Cargando desglose...</p>
+            </div>
           )}
-          {card.detail.href && (
-            <Link
-              href={card.detail.href}
-              className="inline-flex items-center gap-1 text-[12px] text-ek-600 font-medium hover:text-ek-700 transition-colors"
-            >
-              {card.detail.hrefLabel ?? "Ver más"} <ArrowRight size={11} />
-            </Link>
+
+          {error && (
+            <p className="text-[13px] text-red-500 text-center py-8">{error}</p>
+          )}
+
+          {!loading && !error && filas !== null && (
+            <>
+              {filas.length === 0 ? (
+                <p className="text-[13px] text-gray-400 text-center py-8">
+                  No hay registros para mostrar.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {/* Subtítulo */}
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                    {card.esProveedores ? "Empresas activas" : "Desglose por empresa"}
+                  </p>
+
+                  {filas.map((fila, i) => (
+                    <div key={`${fila.empresa}-${i}`} className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-[10px] font-bold text-gray-300 w-4 shrink-0">{i + 1}</span>
+                          <span className="text-[13px] text-gray-700 font-medium truncate">{fila.empresa}</span>
+                        </div>
+                        {!card.esProveedores && (
+                          <span className="text-[14px] font-bold text-gray-800 shrink-0">
+                            {fila.total}
+                          </span>
+                        )}
+                      </div>
+                      {!card.esProveedores && (
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${card.barColor}`}
+                            style={{ width: `${Math.max(Math.round((fila.total / maximo) * 100), 4)}%` }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Resumen total (solo si no es lista de proveedores) */}
+                  {!card.esProveedores && filas.length > 1 && (
+                    <div className="pt-2 border-t border-gray-100 flex justify-between text-[12px]">
+                      <span className="text-gray-400 font-medium">
+                        {filas.length} empresa{filas.length !== 1 ? "s" : ""}
+                      </span>
+                      <span className="font-bold text-gray-700">Total: {card.value}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
-      )}
+
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-gray-100 shrink-0">
+          <Link
+            href={card.href}
+            onClick={onClose}
+            className="flex items-center justify-center gap-2 w-full py-2.5 bg-ek-500 text-white rounded-xl text-[13px] font-semibold hover:bg-ek-600 transition-colors"
+          >
+            {card.hrefLabel} <ArrowRight size={14} />
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
 
+// ── Grid principal ─────────────────────────────────────
 export function KPICardsGrid({ kpis, esAdmin }: { kpis: DashboardKPIs; esAdmin: boolean }) {
-  const [openCard, setOpenCard] = useState<string | null>(null);
+  const [modalCard, setModalCard] = useState<CardDef | null>(null);
 
-  const toggle = (key: string) =>
-    setOpenCard((prev) => (prev === key ? null : key));
-
-  const pctAprobado =
-    kpis.total_personal > 0
-      ? Math.round((kpis.personal_aprobado / kpis.total_personal) * 100)
-      : 0;
-
-  const cards: KPICardDef[] = [
+  const cards: CardDef[] = [
     {
       key: "activo",
       label: "Personal activo",
       value: kpis.total_personal,
       icon: Users,
       color: "bg-blue-50 text-blue-500",
-      detail: {
-        description: `Total del personal con registro activo en el sistema.`,
-        extra: `Aprobados: ${kpis.personal_aprobado} · Pendientes: ${kpis.personal_pendiente} · Rechazados: ${kpis.personal_rechazado} · En corrección: ${kpis.personal_en_correccion}`,
-        href: "/dashboard/personal/consulta",
-        hrefLabel: "Ver todo el personal",
-      },
+      barColor: "bg-blue-400",
+      href: "/dashboard/personal/consulta",
+      hrefLabel: "Ver todo el personal",
     },
     {
       key: "aprobado",
@@ -104,11 +217,9 @@ export function KPICardsGrid({ kpis, esAdmin }: { kpis: DashboardKPIs; esAdmin: 
       value: kpis.personal_aprobado,
       icon: CheckCircle,
       color: "bg-green-50 text-green-500",
-      detail: {
-        description: `Representan el ${pctAprobado}% del total del personal activo. Han cumplido todos los requisitos documentales y están habilitados.`,
-        href: "/dashboard/personal/consulta",
-        hrefLabel: "Ver aprobados",
-      },
+      barColor: "bg-green-400",
+      href: "/dashboard/personal/consulta",
+      hrefLabel: "Ver aprobados",
     },
     {
       key: "pendiente",
@@ -116,14 +227,9 @@ export function KPICardsGrid({ kpis, esAdmin }: { kpis: DashboardKPIs; esAdmin: 
       value: kpis.personal_pendiente,
       icon: Clock,
       color: "bg-amber-50 text-amber-500",
-      detail: {
-        description:
-          kpis.personal_pendiente > 0
-            ? "Personas esperando revisión de documentos. Se requiere acción del administrador."
-            : "No hay personas en espera de aprobación actualmente.",
-        href: "/dashboard/personal/consulta",
-        hrefLabel: "Revisar pendientes",
-      },
+      barColor: "bg-amber-400",
+      href: "/dashboard/personal/consulta",
+      hrefLabel: "Revisar pendientes",
     },
     {
       key: "docs_vencer",
@@ -131,14 +237,9 @@ export function KPICardsGrid({ kpis, esAdmin }: { kpis: DashboardKPIs; esAdmin: 
       value: kpis.documentos_por_vencer,
       icon: AlertTriangle,
       color: "bg-red-50 text-red-500",
-      detail: {
-        description:
-          kpis.documentos_por_vencer > 0
-            ? "Documentos próximos a vencer en los siguientes 60 días. Notifica a los proveedores afectados para evitar suspensiones."
-            : "Todos los documentos están vigentes para los próximos 60 días.",
-        href: "/dashboard/personal/consulta",
-        hrefLabel: "Ver documentos próximos a vencer",
-      },
+      barColor: "bg-red-400",
+      href: "/dashboard/personal/consulta",
+      hrefLabel: "Ver documentos próximos a vencer",
     },
     {
       key: "vehiculos",
@@ -146,12 +247,9 @@ export function KPICardsGrid({ kpis, esAdmin }: { kpis: DashboardKPIs; esAdmin: 
       value: kpis.vehiculos_activos,
       icon: Truck,
       color: "bg-purple-50 text-purple-500",
-      detail: {
-        description:
-          "Vehículos registrados y activos en el sistema, asociados al personal aprobado.",
-        href: "/dashboard/personal/consulta",
-        hrefLabel: "Ver personal con vehículo",
-      },
+      barColor: "bg-purple-400",
+      href: "/dashboard/personal/consulta",
+      hrefLabel: "Ver consulta de personal",
     },
     {
       key: "proveedores",
@@ -159,11 +257,10 @@ export function KPICardsGrid({ kpis, esAdmin }: { kpis: DashboardKPIs; esAdmin: 
       value: kpis.proveedores_activos,
       icon: Building2,
       color: "bg-ek-50 text-ek-600",
-      detail: {
-        description: "Empresas y proveedores con estado activo registrados en el sistema.",
-        href: "/dashboard/proveedores",
-        hrefLabel: "Gestionar empresas",
-      },
+      barColor: "bg-ek-400",
+      href: "/dashboard/proveedores",
+      hrefLabel: "Gestionar empresas",
+      esProveedores: true,
     },
     ...(esAdmin
       ? ([
@@ -173,14 +270,9 @@ export function KPICardsGrid({ kpis, esAdmin }: { kpis: DashboardKPIs; esAdmin: 
             value: kpis.grupos_pendientes,
             icon: UsersRound,
             color: "bg-indigo-50 text-indigo-500",
-            detail: {
-              description:
-                kpis.grupos_pendientes > 0
-                  ? "Grupos de ingreso enviados por proveedores que requieren revisión del administrador."
-                  : "No hay grupos de ingreso pendientes de revisión.",
-              href: "/dashboard/personal/grupos",
-              hrefLabel: "Revisar grupos",
-            },
+            barColor: "bg-indigo-400",
+            href: "/dashboard/personal/grupos",
+            hrefLabel: "Revisar grupos",
           },
           {
             key: "correccion",
@@ -188,16 +280,11 @@ export function KPICardsGrid({ kpis, esAdmin }: { kpis: DashboardKPIs; esAdmin: 
             value: kpis.personal_en_correccion,
             icon: Wrench,
             color: "bg-orange-50 text-orange-500",
-            detail: {
-              description:
-                kpis.personal_en_correccion > 0
-                  ? "Personal con documentación en proceso de corrección, esperando una segunda revisión."
-                  : "No hay personal en proceso de corrección actualmente.",
-              href: "/dashboard/personal/correcciones",
-              hrefLabel: "Ver correcciones",
-            },
+            barColor: "bg-orange-400",
+            href: "/dashboard/personal/correcciones",
+            hrefLabel: "Ver correcciones",
           },
-        ] as KPICardDef[])
+        ] as CardDef[])
       : []),
     {
       key: "historial",
@@ -205,25 +292,30 @@ export function KPICardsGrid({ kpis, esAdmin }: { kpis: DashboardKPIs; esAdmin: 
       value: kpis.personal_historial,
       icon: Archive,
       color: "bg-gray-100 text-gray-400",
-      detail: {
-        description:
-          "Personal inactivo o archivado. Han salido del sistema pero su historial se conserva para consulta.",
-        href: "/dashboard/personal/consulta",
-        hrefLabel: "Ver historial",
-      },
+      barColor: "bg-gray-300",
+      href: "/dashboard/personal/consulta",
+      hrefLabel: "Ver historial",
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-      {cards.map((card) => (
-        <KPICard
-          key={card.key}
-          card={card}
-          isOpen={openCard === card.key}
-          onToggle={() => toggle(card.key)}
+    <>
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        {cards.map((card) => (
+          <KPICard
+            key={card.key}
+            card={card}
+            onClick={() => setModalCard(card)}
+          />
+        ))}
+      </div>
+
+      {modalCard && (
+        <DetalleModal
+          card={modalCard}
+          onClose={() => setModalCard(null)}
         />
-      ))}
-    </div>
+      )}
+    </>
   );
 }

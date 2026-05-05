@@ -1,9 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import {
-  Clock, AlertTriangle, UsersRound, Wrench,
-} from "lucide-react";
+import { Clock, AlertTriangle, UsersRound, Wrench } from "lucide-react";
 import type { DashboardKPIs } from "@/types";
 import { ChartBarEstados } from "@/components/dashboard/ChartBarEstados";
 import { ChartAreaMes } from "@/components/dashboard/ChartAreaMes";

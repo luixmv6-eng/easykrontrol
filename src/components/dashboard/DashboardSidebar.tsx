@@ -65,7 +65,7 @@ export function DashboardSidebar({ rol, isOpen = false, onClose }: DashboardSide
   return (
     <>
       {/* ── Sidebar estático en desktop ── */}
-      <aside className="hidden md:block w-56 bg-white border-r border-gray-100 min-h-full py-6 shrink-0 flex flex-col">
+      <aside className="hidden md:flex md:flex-col w-56 bg-white border-r border-gray-100 py-6 shrink-0">
         <div className="flex-1">
           <NavLinks links={links} pathname={pathname} />
         </div>

@@ -62,6 +62,10 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
   const [bulkMotivo, setBulkMotivo] = useState("");
   const [bulkLoading, setBulkLoading] = useState(false);
   const [exportandoExcel, setExportandoExcel] = useState(false);
+  const [modalError, setModalError] = useState("");
+  const [bulkError, setBulkError] = useState("");
+  const [exportError, setExportError] = useState("");
+  const [corrError, setCorrError] = useState("");
   const supabase = createClient();
 
   const toggleSeleccion = (id: string) => {
@@ -85,6 +89,7 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
   const handleBulk = async () => {
     if (!bulkModal || !seleccionados.size) return;
     setBulkLoading(true);
+    setBulkError("");
     try {
       const res = await fetch("/api/personal/bulk", {
         method: "PATCH",
@@ -95,18 +100,28 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
         const nuevoEstado = bulkModal === "aprobar" ? "aprobado" : "rechazado";
         setLista((prev) => prev.map((p) => seleccionados.has(p.id) ? { ...p, estado: nuevoEstado as Personal["estado"] } : p));
         setSeleccionados(new Set());
+        setBulkModal(null);
+        setBulkMotivo("");
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setBulkError(json.error ?? "Error al procesar. Intenta de nuevo.");
       }
-    } finally { setBulkModal(null); setBulkMotivo(""); setBulkLoading(false); }
+    } catch {
+      setBulkError("Error de conexión. Intenta de nuevo.");
+    } finally {
+      setBulkLoading(false);
+    }
   };
 
   const exportarExcel = async () => {
     setExportandoExcel(true);
+    setExportError("");
     try {
       const params = new URLSearchParams({ tab });
       if (filtroProveedor) params.set("proveedor_id", filtroProveedor);
       if (filtroEstado) params.set("estado", filtroEstado);
       const res = await fetch(`/api/export/personal?${params}`);
-      if (!res.ok) return;
+      if (!res.ok) { setExportError("Error al exportar. Intenta de nuevo."); return; }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -114,7 +129,11 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
       a.download = `personal_${tab}_${new Date().toISOString().split("T")[0]}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
-    } finally { setExportandoExcel(false); }
+    } catch {
+      setExportError("Error de conexión al exportar.");
+    } finally {
+      setExportandoExcel(false);
+    }
   };
 
   const verDoc = async (url: string) => {
@@ -141,6 +160,7 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
   const handleAprobarRechazar = async () => {
     if (!modal) return;
     setLoadingId(modal.id);
+    setModalError("");
     try {
       const res = await fetch(`/api/personal/${modal.id}`, {
         method: "PATCH",
@@ -154,14 +174,25 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
       if (res.ok) {
         const { data } = await res.json();
         setLista((prev) => prev.map((p) => (p.id === data.id ? { ...p, ...data } : p)));
+        setModal(null);
+        setMotivo("");
+        setEmailNotif("");
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setModalError(json.error ?? "Error al procesar. Intenta de nuevo.");
       }
-    } finally { setModal(null); setMotivo(""); setEmailNotif(""); setLoadingId(null); }
+    } catch {
+      setModalError("Error de conexión. Intenta de nuevo.");
+    } finally {
+      setLoadingId(null);
+    }
   };
 
   const closeCorrModal = () => {
     setCorrModal(null);
     setCorrFiles({});
     setCorrFechas({});
+    setCorrError("");
   };
 
   const handleCorreccion = async () => {
@@ -170,6 +201,7 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
     if (tiposSeleccionados.length === 0) return;
 
     setCorrLoading(true);
+    setCorrError("");
     try {
       for (const tipo of tiposSeleccionados) {
         const file = corrFiles[tipo];
@@ -179,18 +211,24 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
         const { error: upError } = await supabase.storage
           .from("documentos")
           .upload(path, file, { upsert: true, contentType: "application/pdf" });
-        if (upError) continue;
+        if (upError) {
+          setCorrError(`Error al subir ${TIPO_LABELS[tipo]}: ${upError.message}`);
+          return;
+        }
 
-        await fetch(`/api/personal/${corrModal.id}/documentos`, {
+        const docRes = await fetch(`/api/personal/${corrModal.id}/documentos`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            tipo,
-            url: path,
-            nombre_archivo: file.name,
+            tipo, url: path, nombre_archivo: file.name,
             fecha_inicio_vigencia: corrFechas[tipo] ?? null,
           }),
         });
+        if (!docRes.ok) {
+          const j = await docRes.json().catch(() => ({}));
+          setCorrError(j.error ?? `Error al registrar ${TIPO_LABELS[tipo]}.`);
+          return;
+        }
       }
 
       const res = await fetch(`/api/personal/${corrModal.id}`, {
@@ -202,8 +240,15 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
         const { data } = await res.json();
         setLista((prev) => prev.map((p) => (p.id === data.id ? { ...p, ...data } : p)));
         closeCorrModal();
+      } else {
+        const j = await res.json().catch(() => ({}));
+        setCorrError(j.error ?? "Error al enviar la corrección. Intenta de nuevo.");
       }
-    } finally { setCorrLoading(false); }
+    } catch {
+      setCorrError("Error de conexión. Intenta de nuevo.");
+    } finally {
+      setCorrLoading(false);
+    }
   };
 
   const exportarPDF = async (p: Personal) => {
@@ -288,11 +333,16 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
             <option value="rechazado">Rechazado</option>
             <option value="inactivo">Inactivo</option>
           </select>
-          <button onClick={exportarExcel} disabled={exportandoExcel}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-[12px] text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50">
-            <FileSpreadsheet size={13} className="text-green-600" />
-            {exportandoExcel ? "Exportando..." : "Excel"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={exportarExcel} disabled={exportandoExcel}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-[12px] text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50">
+              <FileSpreadsheet size={13} className="text-green-600" />
+              {exportandoExcel ? "Exportando..." : "Excel"}
+            </button>
+            {exportError && (
+              <span className="text-[11px] text-red-500">{exportError}</span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -328,8 +378,6 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
           const isOpen = expandido === p.id;
           const tiposRequeridos: TipoDocumento[] = ["cedula", "licencia", "arl"];
           const tiposVehiculo: TipoDocumento[] = ["soat", "tecnicomecanica"];
-          const docsSubidos = tiposRequeridos.filter((t) => p.documentos?.some((d) => d.tipo === t)).length;
-          const docsVeh = tiposVehiculo.filter((t) => p.documentos?.some((d) => d.tipo === t)).length;
           const badge = ESTADO_BADGE[p.estado] ?? { label: p.estado, cls: "bg-gray-100 text-gray-500" };
           const docsPorVencer = p.documentos?.filter((d) => { const dias = diasHastaVencer(d.fecha_vencimiento); return dias !== null && dias <= 60 && dias > 0; });
           const todos = [...tiposRequeridos, ...(p.vehiculo_id ? tiposVehiculo : [])];
@@ -452,8 +500,11 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
                   )} />
               </div>
             </div>
+            {modalError && (
+              <p className="text-[12px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{modalError}</p>
+            )}
             <div className="flex gap-3">
-              <button onClick={() => { setModal(null); setMotivo(""); }} className="flex-1 py-2 border border-gray-200 rounded-lg text-[13px] text-gray-600 hover:bg-gray-50">Cancelar</button>
+              <button onClick={() => { setModal(null); setMotivo(""); setModalError(""); }} className="flex-1 py-2 border border-gray-200 rounded-lg text-[13px] text-gray-600 hover:bg-gray-50">Cancelar</button>
               <button onClick={handleAprobarRechazar} disabled={!!loadingId || (modal.accion === "rechazar" && !motivo.trim())}
                 className={clsx("flex-1 py-2 rounded-lg text-[13px] font-semibold text-white disabled:opacity-50",
                   modal.accion === "aprobar" ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600"
@@ -480,8 +531,11 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-red-300 resize-none" />
               </div>
             )}
+            {bulkError && (
+              <p className="text-[12px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{bulkError}</p>
+            )}
             <div className="flex gap-3">
-              <button onClick={() => { setBulkModal(null); setBulkMotivo(""); }}
+              <button onClick={() => { setBulkModal(null); setBulkMotivo(""); setBulkError(""); }}
                 className="flex-1 py-2 border border-gray-200 rounded-lg text-[13px] text-gray-600 hover:bg-gray-50">Cancelar</button>
               <button onClick={handleBulk} disabled={bulkLoading || (bulkModal === "rechazar" && !bulkMotivo.trim())}
                 className={clsx("flex-1 py-2 rounded-lg text-[13px] font-semibold text-white disabled:opacity-50",
@@ -624,6 +678,9 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
               </div>
             )}
 
+            {corrError && (
+              <p className="text-[12px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{corrError}</p>
+            )}
             <div className="flex gap-3 pt-2 border-t border-gray-100">
               <button onClick={closeCorrModal}
                 className="flex-1 py-2 border border-gray-200 rounded-lg text-[13px] text-gray-600 hover:bg-gray-50">

@@ -19,7 +19,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <>
       <SessionTimeout />
-      <DashboardShell email={session.user.email!} rol={rol}>
+      <DashboardShell email={session.user.email ?? session.user.user_metadata?.email ?? "Usuario"} rol={rol}>
         {children}
       </DashboardShell>
     </>
