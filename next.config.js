@@ -43,7 +43,6 @@ const nextConfig = {
   images: {
     domains: [],
   },
-  serverExternalPackages: ["pdf-parse"],
 };
 
 module.exports = withPWA(nextConfig);
