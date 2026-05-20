@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CheckCircle, Upload } from "lucide-react";
 import clsx from "clsx";
+import { ACTIVIDADES_CONTRATISTA, CARGOS_CONTRATISTA, ARL_OPTIONS, EPS_OPTIONS } from "@/types";
 
 interface Proveedor {
   id: string;
@@ -127,6 +128,59 @@ export function RegistroPublicoForm({ proveedores }: Props) {
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400"
             />
           </div>
+
+          <div className="sm:col-span-2">
+            <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Actividad a realizar *</label>
+            <select
+              name="actividad_a_realizar"
+              required
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400"
+            >
+              <option value="">Seleccionar actividad</option>
+              {ACTIVIDADES_CONTRATISTA.map((a) => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Cargo</label>
+            <select
+              name="cargo"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400"
+            >
+              <option value="">Seleccionar cargo</option>
+              {CARGOS_CONTRATISTA.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">ARL</label>
+            <select
+              name="arl"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400"
+            >
+              <option value="">Seleccionar ARL</option>
+              {ARL_OPTIONS.map((a) => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">EPS</label>
+            <select
+              name="eps"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400"
+            >
+              <option value="">Seleccionar EPS</option>
+              {EPS_OPTIONS.map((ep) => (
+                <option key={ep} value={ep}>{ep}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -135,7 +189,7 @@ export function RegistroPublicoForm({ proveedores }: Props) {
           {[
             { name: "cedula_doc", label: "Cédula de ciudadanía *", required: true },
             { name: "licencia_doc", label: "Licencia de conducción", required: false },
-            { name: "arl_doc", label: "ARL", required: false },
+            { name: "arl_doc", label: "ARL (soporte)", required: false },
           ].map(({ name, label, required }) => (
             <div key={name}>
               <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">

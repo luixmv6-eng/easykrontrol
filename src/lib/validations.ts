@@ -39,3 +39,60 @@ export const recoverySchema = z.object({
 export type CredentialsFormValues = z.infer<typeof credentialsSchema>;
 export type MfaFormValues = z.infer<typeof mfaSchema>;
 export type RecoveryFormValues = z.infer<typeof recoverySchema>;
+
+// ── Checklist F-P-ECC-001-05 ─────────────────────────
+export interface ChecklistItem {
+  requisito: string;
+  cumple: boolean;
+  observacion?: string;
+}
+
+export function validarChecklistDocumentacion(persona: {
+  actividad_a_realizar?: string | null;
+  vehiculo?: { tipo?: string | null } | null;
+  documentos: { tipo: string }[];
+}): ChecklistItem[] {
+  const tiposDoc = persona.documentos.map((d) => d.tipo);
+  const tieneVehiculo = !!persona.vehiculo;
+
+  return [
+    {
+      requisito: "Cédula de ciudadanía",
+      cumple: tiposDoc.includes("cedula"),
+    },
+    {
+      requisito: "ARL (Afiliación vigente)",
+      cumple: tiposDoc.includes("arl"),
+    },
+    {
+      requisito: "Licencia de conducción vigente",
+      cumple: tiposDoc.includes("licencia"),
+      observacion: tieneVehiculo ? "Requerida por tener vehículo" : "Aplica si conduce",
+    },
+    {
+      requisito: "SOAT del vehículo",
+      cumple: tieneVehiculo ? tiposDoc.includes("soat") : true,
+      observacion: tieneVehiculo ? undefined : "No aplica (sin vehículo)",
+    },
+    {
+      requisito: "Tecnomecánica del vehículo",
+      cumple: tieneVehiculo ? tiposDoc.includes("tecnicomecanica") : true,
+      observacion: tieneVehiculo ? undefined : "No aplica (sin vehículo)",
+    },
+  ];
+}
+
+export function actividadRequiereVehiculo(actividad: string): boolean {
+  return [
+    "Labores Mecanizadas",
+    "Transporte de Combustible",
+    "Transporte de Mercancías Peligrosas",
+    "Transporte de Semilla",
+    "Transporte material, sedimentos, tierra",
+    "Visita al Poliducto",
+  ].includes(actividad);
+}
+
+export function actividadRequiereLicencia(actividad: string): boolean {
+  return actividadRequiereVehiculo(actividad) || actividad === "Labores Mecanizadas";
+}

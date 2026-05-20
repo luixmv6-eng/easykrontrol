@@ -31,8 +31,15 @@ export function generarExcelPersonal(personal: Personal[]): Buffer {
 
     return [
       {
-        Nombres: p.nombres,
+        "No.": personal.indexOf(p) + 1,
         Cédula: p.cedula,
+        "Nombre y Apellidos": p.nombres,
+        Cargo: p.cargo ?? "-",
+        "Municipio Residencia": p.municipio_residencia ?? "-",
+        ARL: p.arl ?? "-",
+        EPS: p.eps ?? "-",
+        AFP: p.afp ?? "-",
+        "Actividad a Realizar": p.actividad_a_realizar ?? "-",
         Empresa: p.proveedor?.nombre ?? "-",
         NIT: p.proveedor?.nit ?? "-",
         Estado: ESTADO_LABELS[p.estado] ?? p.estado,
@@ -40,7 +47,13 @@ export function generarExcelPersonal(personal: Personal[]): Buffer {
         "En corrección": p.en_correccion ? "Sí" : "No",
         "Fecha entrada": p.fecha_entrada ? new Date(p.fecha_entrada).toLocaleDateString("es-CO") : "-",
         "Fecha fin": p.fecha_fin ? new Date(p.fecha_fin).toLocaleDateString("es-CO") : "-",
-        Vehículo: p.vehiculo ? `${p.vehiculo.placa} — ${p.vehiculo.marca ?? ""} ${p.vehiculo.modelo ?? ""}`.trim() : "-",
+        "Tipo Vehículo": p.vehiculo?.tipo ?? "-",
+        Placa: p.vehiculo?.placa ?? "-",
+        "Color Vehículo": p.vehiculo?.color ?? "-",
+        "Categoría Licencia": p.vehiculo?.categoria_licencia ?? "-",
+        "Vencimiento Licencia": p.vehiculo?.fecha_vencimiento_licencia
+          ? new Date(p.vehiculo.fecha_vencimiento_licencia).toLocaleDateString("es-CO")
+          : "-",
         "Docs cargados": `${todosLosTipos.filter((t) => p.documentos?.some((d) => d.tipo === t)).length}/${todosLosTipos.length}`,
         ...Object.fromEntries(
           todosLosTipos.map((tipo) => {
@@ -62,9 +75,12 @@ export function generarExcelPersonal(personal: Personal[]): Buffer {
   const ws = XLSX.utils.json_to_sheet(filas);
 
   ws["!cols"] = [
-    { wch: 30 }, { wch: 14 }, { wch: 30 }, { wch: 14 }, { wch: 12 },
-    { wch: 30 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 25 }, { wch: 14 },
-    { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 14 },
+    { wch: 5 },  { wch: 14 }, { wch: 30 }, { wch: 28 }, { wch: 20 },
+    { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 35 }, { wch: 30 },
+    { wch: 14 }, { wch: 12 }, { wch: 30 }, { wch: 12 }, { wch: 16 },
+    { wch: 16 }, { wch: 22 }, { wch: 12 }, { wch: 14 }, { wch: 16 },
+    { wch: 18 }, { wch: 14 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
+    { wch: 20 }, { wch: 20 }, { wch: 14 },
   ];
 
   XLSX.utils.book_append_sheet(wb, ws, "Personal");

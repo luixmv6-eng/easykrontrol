@@ -9,7 +9,7 @@ export default async function ConsultaPersonalPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("rol, proveedor_id")
+    .select("rol, proveedor_id, full_name")
     .eq("id", session.user.id)
     .single();
 
@@ -33,6 +33,7 @@ export default async function ConsultaPersonalPage() {
       proveedores={proveedores ?? []}
       rol={rol}
       proveedorIdActual={profile?.proveedor_id ?? null}
+      adminNombre={profile?.full_name ?? ""}
     />
   );
 }

@@ -119,6 +119,24 @@ export async function GET(request: Request) {
       break;
     }
 
+    case "actividades": {
+      const { data } = await supabase
+        .from("personal")
+        .select("actividad_a_realizar")
+        .neq("estado", "inactivo")
+        .not("actividad_a_realizar", "is", null);
+
+      const conteo: Record<string, number> = {};
+      for (const row of data ?? []) {
+        const act = (row as { actividad_a_realizar?: string | null }).actividad_a_realizar ?? "Sin actividad";
+        conteo[act] = (conteo[act] ?? 0) + 1;
+      }
+      filas = Object.entries(conteo)
+        .map(([empresa, total]) => ({ empresa, total }))
+        .sort((a, b) => b.total - a.total);
+      break;
+    }
+
     default:
       return NextResponse.json({ error: "Tipo no reconocido" }, { status: 400 });
   }

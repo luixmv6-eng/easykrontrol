@@ -4,11 +4,13 @@ import { useState } from "react";
 import {
   CheckCircle, XCircle, AlertTriangle, FileText,
   Download, ChevronDown, ChevronUp, Search, Filter, Clock, Archive, Wrench,
-  FileSpreadsheet, Square, CheckSquare, Upload, X as XIcon,
+  FileSpreadsheet, Square, CheckSquare, Upload, X as XIcon, ClipboardCheck,
 } from "lucide-react";
 import clsx from "clsx";
 import { createClient } from "@/lib/supabase/client";
 import type { Personal, Proveedor, TipoDocumento } from "@/types";
+import { ACTIVIDADES_CONTRATISTA, CARGOS_CONTRATISTA } from "@/types";
+import { ChecklistDocumentacion } from "./ChecklistDocumentacion";
 
 const TIPO_LABELS: Record<TipoDocumento, string> = {
   cedula: "Cédula", licencia: "Licencia", arl: "ARL", soat: "SOAT", tecnicomecanica: "Tecnomecánica",
@@ -39,12 +41,15 @@ interface Props {
   proveedores: Pick<Proveedor, "id" | "nombre">[];
   rol: string;
   proveedorIdActual: string | null;
+  adminNombre?: string;
 }
 
-export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorIdActual }: Props) {
+export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorIdActual, adminNombre = "" }: Props) {
   const [tab, setTab] = useState<Tab>("activos");
   const [filtroProveedor, setFiltroProveedor] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
+  const [filtroActividad, setFiltroActividad] = useState("");
+  const [filtroCargo, setFiltroCargo] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [expandido, setExpandido] = useState<string | null>(null);
   const [modal, setModal] = useState<{ id: string; accion: "aprobar" | "rechazar"; proveedorEmail?: string | null } | null>(null);
@@ -62,6 +67,7 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
   const [bulkMotivo, setBulkMotivo] = useState("");
   const [bulkLoading, setBulkLoading] = useState(false);
   const [exportandoExcel, setExportandoExcel] = useState(false);
+  const [checklistAbierto, setChecklistAbierto] = useState<string | null>(null);
   const [modalError, setModalError] = useState("");
   const [bulkError, setBulkError] = useState("");
   const [exportError, setExportError] = useState("");
@@ -150,6 +156,8 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
   const filtrado = base.filter((p) => {
     if (filtroProveedor && p.proveedor_id !== filtroProveedor) return false;
     if (filtroEstado && p.estado !== filtroEstado) return false;
+    if (filtroActividad && p.actividad_a_realizar !== filtroActividad) return false;
+    if (filtroCargo && p.cargo !== filtroCargo) return false;
     if (busqueda) {
       const q = busqueda.toLowerCase();
       if (!p.nombres.toLowerCase().includes(q) && !p.cedula.includes(q)) return false;
@@ -298,7 +306,7 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
       {/* Tabs */}
       <div className="flex bg-gray-100 rounded-xl p-1 gap-1 w-full sm:w-fit">
         {([["activos", "Activos", activos.length], ["historial", "Historial", historial.length]] as const).map(([t, label, count]) => (
-          <button key={t} onClick={() => { setTab(t); setFiltroEstado(""); setBusqueda(""); }}
+          <button key={t} onClick={() => { setTab(t); setFiltroEstado(""); setFiltroActividad(""); setFiltroCargo(""); setBusqueda(""); }}
             className={clsx("flex-1 sm:flex-none flex items-center justify-center sm:justify-start gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-colors",
               tab === t ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
             )}>
@@ -332,6 +340,16 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
             <option value="aprobado">Aprobado</option>
             <option value="rechazado">Rechazado</option>
             <option value="inactivo">Inactivo</option>
+          </select>
+          <select value={filtroActividad} onChange={(e) => setFiltroActividad(e.target.value)}
+            className="text-[12px] border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-ek-400 max-w-[180px]">
+            <option value="">Todas las actividades</option>
+            {ACTIVIDADES_CONTRATISTA.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+          <select value={filtroCargo} onChange={(e) => setFiltroCargo(e.target.value)}
+            className="text-[12px] border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-ek-400 max-w-[160px]">
+            <option value="">Todos los cargos</option>
+            {CARGOS_CONTRATISTA.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
           <div className="flex items-center gap-2">
             <button onClick={exportarExcel} disabled={exportandoExcel}
@@ -428,10 +446,107 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
 
               {isOpen && (
                 <div className="border-t border-gray-100 px-3 sm:px-5 py-4 space-y-4">
+                  {/* Datos del personal */}
+                  <div>
+                    <p className="text-[12px] font-semibold text-gray-500 mb-2">Información del personal</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 text-[12px]">
+                      {p.actividad_a_realizar && (
+                        <div className="col-span-2 sm:col-span-3">
+                          <span className="text-gray-400">Actividad:</span>{" "}
+                          <span className="text-gray-700 font-medium">{p.actividad_a_realizar}</span>
+                        </div>
+                      )}
+                      {p.cargo && (
+                        <div>
+                          <span className="text-gray-400">Cargo:</span>{" "}
+                          <span className="text-gray-700">{p.cargo}</span>
+                        </div>
+                      )}
+                      {p.municipio_residencia && (
+                        <div>
+                          <span className="text-gray-400">Municipio:</span>{" "}
+                          <span className="text-gray-700">{p.municipio_residencia}</span>
+                        </div>
+                      )}
+                      {p.arl && (
+                        <div>
+                          <span className="text-gray-400">ARL:</span>{" "}
+                          <span className="text-gray-700">{p.arl}</span>
+                        </div>
+                      )}
+                      {p.eps && (
+                        <div>
+                          <span className="text-gray-400">EPS:</span>{" "}
+                          <span className="text-gray-700">{p.eps}</span>
+                        </div>
+                      )}
+                      {p.afp && (
+                        <div>
+                          <span className="text-gray-400">AFP:</span>{" "}
+                          <span className="text-gray-700">{p.afp}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Datos del vehículo */}
+                  {p.vehiculo && (
+                    <div>
+                      <p className="text-[12px] font-semibold text-gray-500 mb-2">Vehículo</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 text-[12px]">
+                        {p.vehiculo.placa && <div><span className="text-gray-400">Placa:</span> <span className="text-gray-700 font-medium">{p.vehiculo.placa}</span></div>}
+                        {p.vehiculo.tipo && <div><span className="text-gray-400">Tipo:</span> <span className="text-gray-700">{p.vehiculo.tipo}</span></div>}
+                        {p.vehiculo.marca && <div><span className="text-gray-400">Marca:</span> <span className="text-gray-700">{p.vehiculo.marca}</span></div>}
+                        {p.vehiculo.modelo && <div><span className="text-gray-400">Modelo:</span> <span className="text-gray-700">{p.vehiculo.modelo}</span></div>}
+                        {p.vehiculo.color && <div><span className="text-gray-400">Color:</span> <span className="text-gray-700">{p.vehiculo.color}</span></div>}
+                        {p.vehiculo.categoria_licencia && <div><span className="text-gray-400">Cat. licencia:</span> <span className="text-gray-700">{p.vehiculo.categoria_licencia}</span></div>}
+                        {p.vehiculo.fecha_vencimiento_licencia && (
+                          <div><span className="text-gray-400">Venc. licencia:</span> <span className="text-gray-700">{new Date(p.vehiculo.fecha_vencimiento_licencia).toLocaleDateString("es-CO")}</span></div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Docs persona */}
                   <DocSection title="Documentos del personal" tipos={tiposRequeridos} docs={p.documentos ?? []} onVer={verDoc} />
                   {/* Docs vehículo */}
                   {p.vehiculo_id && <DocSection title={`Documentos del vehículo (${p.vehiculo?.placa ?? ""})`} tipos={tiposVehiculo} docs={p.documentos ?? []} onVer={verDoc} />}
+
+                  {/* Checklist F-P-ECC-001-05 — solo admin */}
+                  {rol === "admin" && (
+                    <div className="border-t border-gray-100 pt-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setChecklistAbierto(checklistAbierto === p.id ? null : p.id)
+                        }
+                        className="flex items-center gap-2 text-[12px] font-semibold text-ek-600 hover:text-ek-700 transition-colors"
+                      >
+                        <ClipboardCheck size={14} />
+                        {checklistAbierto === p.id
+                          ? "Cerrar checklist F-P-ECC-001-05"
+                          : "Revisar checklist F-P-ECC-001-05"}
+                        {checklistAbierto === p.id
+                          ? <ChevronUp size={13} />
+                          : <ChevronDown size={13} />}
+                      </button>
+
+                      {checklistAbierto === p.id && (
+                        <ChecklistDocumentacion
+                          persona={{
+                            id: p.id,
+                            nombres: p.nombres,
+                            cedula: p.cedula,
+                            actividad_a_realizar: p.actividad_a_realizar,
+                            vehiculo_id: p.vehiculo_id,
+                            proveedor: p.proveedor,
+                            documentos: p.documentos,
+                          }}
+                          adminNombre={adminNombre}
+                        />
+                      )}
+                    </div>
+                  )}
 
                   {p.motivo_rechazo && (
                     <div className="bg-red-50 border border-red-100 rounded-lg p-3">

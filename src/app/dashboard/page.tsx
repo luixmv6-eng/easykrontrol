@@ -15,18 +15,30 @@ export default async function DashboardPage() {
   const { data: profile } = await supabase.from("profiles").select("rol").eq("id", session.user.id).single();
   const esAdmin = profile?.rol === "admin";
 
-  const [{ data: kpisData }, { data: mesData }] = await Promise.all([
+  const [{ data: kpisData }, { data: mesData }, { data: actividadesData }] = await Promise.all([
     supabase.rpc("get_dashboard_kpis"),
     supabase
       .from("personal")
       .select("created_at")
       .gte("created_at", new Date(Date.now() - 180 * 86400000).toISOString()),
+    supabase
+      .from("personal")
+      .select("actividad_a_realizar")
+      .neq("estado", "inactivo")
+      .not("actividad_a_realizar", "is", null),
   ]);
 
-  const kpis: DashboardKPIs = kpisData ?? {
-    total_personal: 0, personal_aprobado: 0, personal_pendiente: 0, personal_rechazado: 0,
-    personal_en_correccion: 0, grupos_pendientes: 0, vehiculos_activos: 0, proveedores_activos: 0,
-    documentos_por_vencer: 0, personal_historial: 0,
+  const actividadesDistintas = new Set(
+    (actividadesData ?? []).map((p) => p.actividad_a_realizar).filter(Boolean)
+  ).size;
+
+  const kpis: DashboardKPIs = {
+    ...(kpisData ?? {
+      total_personal: 0, personal_aprobado: 0, personal_pendiente: 0, personal_rechazado: 0,
+      personal_en_correccion: 0, grupos_pendientes: 0, vehiculos_activos: 0, proveedores_activos: 0,
+      documentos_por_vencer: 0, personal_historial: 0,
+    }),
+    actividades_distintas: actividadesDistintas,
   };
 
   const datosMes = (() => {

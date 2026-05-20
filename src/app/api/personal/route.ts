@@ -8,7 +8,10 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const body = await request.json();
-  const { proveedor_id, nombres, cedula, fecha_entrada, fecha_fin, grupo_id, vehiculo, en_correccion } = body;
+  const {
+    proveedor_id, nombres, cedula, fecha_entrada, fecha_fin, grupo_id, vehiculo, en_correccion,
+    actividad_a_realizar, cargo, municipio_residencia, arl, eps, afp,
+  } = body;
 
   if (!proveedor_id || !nombres || !cedula) {
     return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 });
@@ -38,6 +41,9 @@ export async function POST(request: Request) {
           marca: vehiculo.marca?.trim() || null,
           modelo: vehiculo.modelo?.trim() || null,
           tipo: vehiculo.tipo?.trim() || null,
+          color: vehiculo.color?.trim() || null,
+          categoria_licencia: vehiculo.categoria_licencia?.trim() || null,
+          fecha_vencimiento_licencia: vehiculo.fecha_vencimiento_licencia || null,
         })
         .select("id")
         .single();
@@ -57,6 +63,12 @@ export async function POST(request: Request) {
       grupo_id: grupo_id || null,
       vehiculo_id,
       en_correccion: en_correccion ?? false,
+      actividad_a_realizar: actividad_a_realizar || null,
+      cargo: cargo || null,
+      municipio_residencia: municipio_residencia || null,
+      arl: arl || null,
+      eps: eps || null,
+      afp: afp || null,
     })
     .select()
     .single();

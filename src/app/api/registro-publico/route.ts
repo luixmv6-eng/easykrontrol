@@ -10,6 +10,10 @@ export async function POST(request: Request) {
   const cedula = (formData.get("cedula") as string)?.trim();
   const fecha_entrada = formData.get("fecha_entrada") as string | null;
   const fecha_fin = formData.get("fecha_fin") as string | null;
+  const actividad_a_realizar = (formData.get("actividad_a_realizar") as string | null) || null;
+  const cargo = (formData.get("cargo") as string | null) || null;
+  const arl = (formData.get("arl") as string | null) || null;
+  const eps = (formData.get("eps") as string | null) || null;
 
   if (!proveedor_id || !nombres || !cedula) {
     return NextResponse.json({ error: "Empresa, nombre y cédula son requeridos" }, { status: 400 });
@@ -26,6 +30,10 @@ export async function POST(request: Request) {
       fecha_entrada: fecha_entrada || null,
       fecha_fin: fecha_fin || null,
       estado: "pendiente",
+      actividad_a_realizar,
+      cargo,
+      arl,
+      eps,
     })
     .select("id")
     .single();

@@ -48,7 +48,7 @@ export async function POST(request: Request) {
   const resultPersonas: { id: string; nombres: string; cedula: string }[] = [];
 
   for (const persona of personas) {
-    const { nombres, cedula, vehiculo } = persona;
+    const { nombres, cedula, vehiculo, actividad_a_realizar, cargo, municipio_residencia, arl, eps, afp } = persona;
     if (!nombres?.trim() || !cedula?.trim()) continue;
 
     // Crear vehículo si aplica
@@ -64,6 +64,9 @@ export async function POST(request: Request) {
           marca: vehiculo.marca?.trim() || null,
           modelo: vehiculo.modelo?.trim() || null,
           tipo: vehiculo.tipo?.trim() || null,
+          color: vehiculo.color?.trim() || null,
+          categoria_licencia: vehiculo.categoria_licencia?.trim() || null,
+          fecha_vencimiento_licencia: vehiculo.fecha_vencimiento_licencia || null,
         }).select("id").single();
         vehiculo_id = nuevo?.id ?? null;
       }
@@ -79,6 +82,12 @@ export async function POST(request: Request) {
         fecha_fin: fecha_fin || null,
         grupo_id: grupo.id,
         vehiculo_id,
+        actividad_a_realizar: actividad_a_realizar || null,
+        cargo: cargo || null,
+        municipio_residencia: municipio_residencia || null,
+        arl: arl || null,
+        eps: eps || null,
+        afp: afp || null,
       })
       .select("id, nombres, cedula")
       .single();

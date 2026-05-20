@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Users, CheckCircle, Clock, AlertTriangle, Truck, Building2,
-  UsersRound, Wrench, Archive, X, ArrowRight, Loader2,
+  UsersRound, Wrench, Archive, X, ArrowRight, Loader2, HardHat,
 } from "lucide-react";
 import type { DashboardKPIs } from "@/types";
 
@@ -20,6 +20,7 @@ interface CardDef {
   href: string;
   hrefLabel: string;
   esProveedores?: boolean;
+  esActividades?: boolean;
 }
 
 // ── Card simple ────────────────────────────────────────
@@ -103,7 +104,7 @@ function DetalleModal({
             <div>
               <h2 className="text-[15px] font-bold text-gray-800 leading-tight">{card.label}</h2>
               <p className="text-[12px] text-gray-400">
-                {card.value} {card.value === 1 ? "registro" : "registros"} en total
+                {card.value} {card.esActividades ? (card.value === 1 ? "actividad" : "actividades") : card.value === 1 ? "registro" : "registros"} en total
               </p>
             </div>
           </div>
@@ -139,7 +140,7 @@ function DetalleModal({
                 <div className="space-y-4">
                   {/* Subtítulo */}
                   <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                    {card.esProveedores ? "Empresas activas" : "Desglose por empresa"}
+                    {card.esProveedores ? "Empresas activas" : card.esActividades ? "Personas por actividad" : "Desglose por empresa"}
                   </p>
 
                   {filas.map((fila, i) => (
@@ -295,6 +296,17 @@ export function KPICardsGrid({ kpis, esAdmin }: { kpis: DashboardKPIs; esAdmin: 
       barColor: "bg-gray-300",
       href: "/dashboard/personal/consulta",
       hrefLabel: "Ver historial",
+    },
+    {
+      key: "actividades",
+      label: "Actividades registradas",
+      value: kpis.actividades_distintas,
+      icon: HardHat,
+      color: "bg-teal-50 text-teal-600",
+      barColor: "bg-teal-400",
+      href: "/dashboard/personal/consulta",
+      hrefLabel: "Ver consulta de personal",
+      esActividades: true,
     },
   ];
 
