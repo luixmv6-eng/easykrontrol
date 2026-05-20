@@ -1,8 +1,8 @@
 """
 Verificación robusta de documentos colombianos.
-PDF digitales → PyMuPDF (texto nativo).
-PDFs escaneados + fotos (JPEG/PNG) → Tesseract OCR (español).
-Sin dependencias de IA — 100% local.
+PDF digitales  → PyMuPDF (texto nativo).
+PDFs escaneados + fotos → Tesseract OCR multi-estrategia (español).
+Sin dependencias de IA — 100% local y determinístico.
 """
 
 import io
@@ -12,32 +12,35 @@ from datetime import date
 from typing import Optional
 
 import fitz  # PyMuPDF
-from PIL import Image, ImageStat, ImageOps, ImageFilter, ImageEnhance
+from PIL import Image, ImageStat, ImageFilter, ImageEnhance
 import pytesseract
 
-# ─── Umbrales ────────────────────────────────────────────────────────────────
-MIN_BYTES = 3_000
-MAX_BYTES = 25_000_000
-MIN_STDDEV_IMAGEN = 4.0
-MIN_DIM_PX = 80
-MAX_PAGINAS_OCR = 4       # páginas máximas a procesar por OCR
-OCR_DPI_RENDER = 250      # DPI al renderizar página PDF para OCR
-OCR_MIN_CHARS = 20        # caracteres mínimos para considerar OCR exitoso
+# ─── Tesseract ────────────────────────────────────────────────────────────────
+TESSERACT_LANG   = "spa+eng"
+TESSERACT_CONFIG = "--oem 3 --psm 6"     # LSTM engine, bloque de texto uniforme
+TESSERACT_CONFIG_SPARSE = "--oem 3 --psm 11"  # texto disperso (fotos de documentos físicos)
 
-# ─── Idioma Tesseract ─────────────────────────────────────────────────────────
-# "spa" requiere tesseract-ocr-spa instalado; "spa+eng" como fallback
-TESSERACT_LANG = "spa+eng"
+# ─── Umbrales ─────────────────────────────────────────────────────────────────
+MIN_BYTES       = 3_000
+MAX_BYTES       = 25_000_000
+MIN_STDDEV      = 4.0         # imagen "en blanco" si desv. estándar < 4
+MIN_DIM_PX      = 80
+OCR_MIN_CHARS   = 15          # resultado OCR mínimo para considerar legible
+MAX_PAGINAS     = 5           # máximo de páginas que procesamos por PDF
+RENDER_DPI      = 250         # DPI al renderizar página PDF para OCR
 
-# ─── Meses en español ────────────────────────────────────────────────────────
+# ─── Meses en español ─────────────────────────────────────────────────────────
 MESES_ES: dict[str, int] = {
-    "enero": 1, "febrero": 2, "marzo": 3, "abril": 4,
-    "mayo": 5, "junio": 6, "julio": 7, "agosto": 8,
+    "enero": 1,  "febrero": 2,  "marzo": 3,    "abril": 4,
+    "mayo": 5,   "junio": 6,    "julio": 7,    "agosto": 8,
     "septiembre": 9, "octubre": 10, "noviembre": 11, "diciembre": 12,
     "ene": 1, "feb": 2, "mar": 3, "abr": 4, "may": 5, "jun": 6,
     "jul": 7, "ago": 8, "sep": 9, "oct": 10, "nov": 11, "dic": 12,
 }
 
-# ─── Patrones por tipo de documento ──────────────────────────────────────────
+# ─── Patrones por tipo de documento ───────────────────────────────────────────
+# Cada entrada tiene "patrones" (lista regex) y "min_score" (mínimo de coincidencias).
+# Todos los patrones se evalúan en modo IGNORECASE sobre el texto en MAYÚSCULAS.
 PATRONES_TIPO: dict[str, dict] = {
     "cedula": {
         "patrones": [
@@ -45,9 +48,9 @@ PATRONES_TIPO: dict[str, dict] = {
             r"REP[UÚ]BLICA\s+DE\s+COLOMBIA",
             r"REGISTRADUR[IÍ]A\s+NACIONAL",
             r"\bC\.C\.",
+            r"NUIP\b",
             r"TARJETA\s+DE\s+IDENTIDAD",
             r"IDENTIFICACI[OÓ]N\s+PERSONAL",
-            r"NUIP\b",
         ],
         "min_score": 1,
         "label": "Cédula de Ciudadanía",
@@ -56,10 +59,11 @@ PATRONES_TIPO: dict[str, dict] = {
         "patrones": [
             r"LICENCIA\s+DE\s+CONDUCCI[OÓ]N",
             r"MINISTERIO\s+DE\s+TRANSPORTE",
-            r"REGISTRO\s+NACIONAL\s+DE\s+TR[AÁ]NSITO",
+            r"REGISTRO\s+NACIONAL\s+(?:DE\s+)?TR[AÁ]NSITO",
             r"\bRUNT\b",
-            r"LICENCIA\s+(?:N[UÚ]M(?:ERO)?\.?|#)",
-            r"CATEGOR[IÍ]A\s+(?:A|B|C|D|E)\b",
+            r"LICENCIA\s+(?:N[UÚ]M(?:ERO)?\.?|#|NO\.?)",
+            r"CATEGOR[IÍ]A\s+(?:A|B|C|D|E)\d?\b",
+            r"\bCONDUCIR\b",
         ],
         "min_score": 1,
         "label": "Licencia de Conducción",
@@ -70,7 +74,8 @@ PATRONES_TIPO: dict[str, dict] = {
             r"\bARL\b",
             r"RIESGOS\s+LABORALES",
             r"AFILIACI[OÓ]N\s+(?:A\s+LA\s+)?ARL",
-            r"POSITIVA|SURA\b|COLMENA|LIBERTY|COLPATRIA|AXA|ACOMP",
+            r"POSITIVA\b|SURA\b|COLMENA\b|LIBERTY\b|COLPATRIA\b|AXA\b|ACOMP\b",
+            r"COBERTURA\s+(?:DE\s+)?RIESGOS",
         ],
         "min_score": 1,
         "label": "Certificado ARL",
@@ -81,7 +86,8 @@ PATRONES_TIPO: dict[str, dict] = {
             r"SEGURO\s+OBLIGATORIO\s+DE\s+ACCIDENTES",
             r"P[OÓ]LIZA\s+SOAT",
             r"ACCIDENTES\s+DE\s+TR[AÁ]NSITO",
-            r"SEGURO\s+OBLIGATORIO\s+DE\s+TR[AÁ]NSITO",
+            r"SEGURO\s+OBLIGATORIO\s+(?:DE\s+)?TR[AÁ]NSITO",
+            r"AUTOMOTOR\s+OBLIGATORIO",
         ],
         "min_score": 1,
         "label": "SOAT",
@@ -93,6 +99,7 @@ PATRONES_TIPO: dict[str, dict] = {
             r"\bCDA\b",
             r"CERTIFICADO\s+DE\s+REVISI[OÓ]N\s+T[EÉ]CNICO",
             r"CENTRO\s+DE\s+DIAGN[OÓ]STICO\s+AUTOMOTOR",
+            r"REVISI[OÓ]N\s+VEHICULAR",
         ],
         "min_score": 1,
         "label": "Revisión Tecnomecánica",
@@ -104,7 +111,8 @@ PATRONES_TIPO: dict[str, dict] = {
             r"APORTES\s+A\s+LA\s+SEGURIDAD\s+SOCIAL",
             r"SEGURIDAD\s+SOCIAL\s+INTEGRAL",
             r"OPERADOR\s+DE\s+INFORMACI[OÓ]N",
-            r"ASOPAGOS|SOI\b|APORTES\s+EN\s+L[IÍ]NEA",
+            r"ASOPAGOS\b|SOI\b|APORTES\s+EN\s+L[IÍ]NEA",
+            r"LIQUIDACI[OÓ]N\s+DE\s+APORTES",
         ],
         "min_score": 1,
         "label": "Planilla de Aportes PILA",
@@ -117,6 +125,7 @@ PATRONES_TIPO: dict[str, dict] = {
             r"CONCEPTO\s+M[EÉ]DICO\s+OCUPACIONAL",
             r"\bAPTO\b",
             r"M[EÉ]DICO\s+OCUPACIONAL",
+            r"EVALUACI[OÓ]N\s+M[EÉ]DICA\s+OCUPACIONAL",
         ],
         "min_score": 1,
         "label": "Exámenes Médicos Ocupacionales",
@@ -128,6 +137,8 @@ PATRONES_TIPO: dict[str, dict] = {
             r"COMPETENCIA\s+LABORAL",
             r"HORAS\s+DE\s+(?:FORMACI[OÓ]N|CAPACITACI[OÓ]N)",
             r"ENTRENAMIENTO\s+EN\b",
+            r"PROGRAMA\s+DE\s+FORMACI[OÓ]N",
+            r"APRENDIZAJE\b",
         ],
         "min_score": 1,
         "label": "Certificado de Especialidad",
@@ -138,6 +149,8 @@ PATRONES_TIPO: dict[str, dict] = {
             r"SISTEMA\s+DE\s+GESTI[OÓ]N\s+DE\s+(?:LA\s+)?SEGURIDAD",
             r"SEGURIDAD\s+Y\s+SALUD\s+EN\s+EL\s+TRABAJO",
             r"CALIFICACI[OÓ]N\s+DE\s+(?:EMPRESA|CONTRATISTA|RIESGOS)",
+            r"NIVEL\s+DE\s+CUMPLIMIENTO\s+SG",
+            r"CICLO\s+PHVA",
         ],
         "min_score": 1,
         "label": "ARL SG-SST",
@@ -149,21 +162,25 @@ PATRONES_TIPO: dict[str, dict] = {
             r"SALUD\s+OCUPACIONAL",
             r"SG[\s\-]?SST",
             r"RESP\.\s*SST",
-            r"COORDINADOR\s+(?:DE\s+)?SST",
+            r"COORDINADOR\s+(?:DE\s+)?(?:SST|SG)",
+            r"PROFESIONAL\s+EN\s+SST",
         ],
         "min_score": 1,
         "label": "Responsable SG-SST",
     },
 }
 
-# ─── Patrones de fecha de vencimiento ────────────────────────────────────────
+# ─── Patrones de fecha de vencimiento ─────────────────────────────────────────
 PATRONES_FECHA = [
+    # Con keyword antes — DD/MM/YYYY o DD-MM-YYYY o DD.MM.YYYY
     (
         r"(?:vence?|vencimiento|vigencia|v[aá]lido\s+hasta|expira(?:ci[oó]n)?|"
-        r"fecha\s+(?:de\s+)?vencimiento|hasta\s+el|fecha\s+fin|f\.?\s*vto)\s*[:\-]?\s*"
+        r"fecha\s+(?:de\s+)?(?:vencimiento|expiraci[oó]n)|hasta\s+el|fecha\s+fin|"
+        r"f\.?\s*vto|fecha\s+l[iÍ]mite)\s*[:\-]?\s*"
         r"(\d{1,2})[/\-\.](\d{1,2})[/\-\.](20\d{2})\b",
         "dmy",
     ),
+    # Con keyword — D de mes de YYYY
     (
         r"(?:vence?|vencimiento|vigencia|v[aá]lido\s+hasta|expira(?:ci[oó]n)?|"
         r"hasta\s+el|fecha\s+fin)\s*[:\-]?\s*"
@@ -171,17 +188,18 @@ PATRONES_FECHA = [
         r"septiembre|octubre|noviembre|diciembre)\s+(?:del?\s+)?(20\d{2})\b",
         "dmy_es",
     ),
+    # Con keyword — YYYY-MM-DD
     (
         r"(?:vence?|vencimiento|vigencia|v[aá]lido\s+hasta|expira(?:ci[oó]n)?|"
         r"fecha\s+fin)\s*[:\-]?\s*(20\d{2})[/\-\.](\d{2})[/\-\.](\d{2})\b",
         "ymd",
     ),
-    # Genérico sin palabra clave (menor prioridad)
+    # Genérico sin keyword — DD/MM/YYYY (mes entre 01-12)
     (r"\b(\d{2})[/\-](1[0-2]|0[1-9])/(20[2-9]\d)\b", "dmy"),
 ]
 
 
-# ─── Punto de entrada ─────────────────────────────────────────────────────────
+# ─── Punto de entrada ──────────────────────────────────────────────────────────
 
 def verificar(archivo_base64: str, nombre_archivo: str, tipo_esperado: str) -> dict:
     try:
@@ -193,7 +211,7 @@ def verificar(archivo_base64: str, nombre_archivo: str, tipo_esperado: str) -> d
     if n < MIN_BYTES:
         return _error(f"Archivo demasiado pequeño ({n:,} bytes) — posiblemente vacío")
     if n > MAX_BYTES:
-        return _error(f"Archivo excede el tamaño máximo de 25 MB ({n // 1_000_000} MB)")
+        return _error(f"Archivo excede el tamaño máximo (25 MB)")
 
     mime = _detectar_mime(nombre_archivo, data)
 
@@ -205,7 +223,7 @@ def verificar(archivo_base64: str, nombre_archivo: str, tipo_esperado: str) -> d
         return _error(f"Formato no soportado ({mime}). Solo PDF e imágenes JPG/PNG/WebP")
 
 
-# ─── MIME por magic bytes ─────────────────────────────────────────────────────
+# ─── Detección MIME por magic bytes ───────────────────────────────────────────
 
 def _detectar_mime(nombre: str, data: bytes) -> str:
     if data[:4] == b"%PDF":
@@ -226,7 +244,7 @@ def _detectar_mime(nombre: str, data: bytes) -> str:
     }.get(ext, "application/octet-stream")
 
 
-# ─── Verificación PDF ─────────────────────────────────────────────────────────
+# ─── Verificación PDF ──────────────────────────────────────────────────────────
 
 def _verificar_pdf(data: bytes, tipo_esperado: str) -> dict:
     try:
@@ -242,11 +260,10 @@ def _verificar_pdf(data: bytes, tipo_esperado: str) -> dict:
         doc.close()
         return _error("El PDF no contiene páginas")
 
-    # Extraer texto nativo de todas las páginas
     texto_nativo = ""
     tiene_imagenes_embebidas = False
 
-    for i in range(min(doc.page_count, MAX_PAGINAS_OCR)):
+    for i in range(min(doc.page_count, MAX_PAGINAS)):
         p = doc[i]
         texto_nativo += p.get_text("text") + "\n"
         if p.get_images(full=False):
@@ -254,41 +271,43 @@ def _verificar_pdf(data: bytes, tipo_esperado: str) -> dict:
 
     texto_nativo = texto_nativo.strip()
 
-    # Si el PDF tiene texto nativo suficiente → usarlo directamente
+    # PDF con texto nativo suficiente → análisis directo
     if len(texto_nativo) >= OCR_MIN_CHARS:
         doc.close()
-        return _analizar_texto(texto_nativo, tipo_esperado, fuente="PDF nativo")
+        return _analizar_texto(
+            texto_nativo, tipo_esperado,
+            fuente=f"PDF nativo ({doc.page_count}p)" if False else "PDF nativo"
+        )
 
-    # PDF escaneado (imágenes adentro sin capa de texto) → OCR página por página
+    # PDF escaneado → renderizar páginas y OCR multi-estrategia
     texto_ocr = ""
-    for i in range(min(doc.page_count, MAX_PAGINAS_OCR)):
+    for i in range(min(doc.page_count, MAX_PAGINAS)):
         pagina = doc[i]
-        mat = fitz.Matrix(OCR_DPI_RENDER / 72, OCR_DPI_RENDER / 72)
+        mat = fitz.Matrix(RENDER_DPI / 72, RENDER_DPI / 72)
         pixmap = pagina.get_pixmap(matrix=mat, colorspace=fitz.csRGB)
         img_pil = Image.frombytes("RGB", [pixmap.width, pixmap.height], pixmap.samples)
-        img_pre = _preprocesar_para_ocr(img_pil)
-        texto_ocr += pytesseract.image_to_string(img_pre, lang=TESSERACT_LANG) + "\n"
+        texto_pagina = _ocr_multi_estrategia(img_pil)
+        texto_ocr += texto_pagina + "\n"
 
     doc.close()
     texto_ocr = texto_ocr.strip()
 
     if len(texto_ocr) < OCR_MIN_CHARS:
-        # El PDF tiene imágenes pero OCR no extrajo nada legible
         if tiene_imagenes_embebidas:
             return {
                 "es_correcto_tipo": True,
                 "esta_vigente": None,
                 "fecha_vencimiento_detectada": None,
                 "nombre_detectado": None,
-                "observacion": "PDF con imágenes pero texto no legible por OCR — revisión manual recomendada",
+                "observacion": "PDF escaneado con imágenes — texto no legible por OCR, revisión manual recomendada",
                 "confianza": "media",
             }
-        return _error("PDF sin contenido legible")
+        return _error("PDF sin contenido legible (ni texto nativo ni imágenes)")
 
     return _analizar_texto(texto_ocr, tipo_esperado, fuente="PDF escaneado (OCR)")
 
 
-# ─── Verificación imagen (JPEG/PNG/WebP) ─────────────────────────────────────
+# ─── Verificación imagen ───────────────────────────────────────────────────────
 
 def _verificar_imagen(data: bytes, mime: str, tipo_esperado: str) -> dict:
     try:
@@ -304,29 +323,78 @@ def _verificar_imagen(data: bytes, mime: str, tipo_esperado: str) -> dict:
         return _error(f"Imagen demasiado pequeña ({w}×{h} px)")
 
     stat = ImageStat.Stat(img)
-    stddev_prom = sum(stat.stddev[:3]) / 3
-    if stddev_prom < MIN_STDDEV_IMAGEN:
-        return _error(f"La imagen parece estar en blanco o totalmente oscura")
+    if sum(stat.stddev[:3]) / 3 < MIN_STDDEV:
+        return _error("La imagen parece estar en blanco o totalmente oscura")
 
-    # OCR sobre la imagen
-    img_pre = _preprocesar_para_ocr(img)
-    texto_ocr = pytesseract.image_to_string(img_pre, lang=TESSERACT_LANG)
-
+    texto_ocr = _ocr_multi_estrategia(img)
     fmt = mime.split("/")[-1].upper()
     label = PATRONES_TIPO.get(tipo_esperado, {}).get("label", tipo_esperado)
 
     if len(texto_ocr.strip()) < OCR_MIN_CHARS:
-        # Imagen válida pero OCR no pudo leer texto (foto muy borrosa, oscura, etc.)
         return {
             "es_correcto_tipo": True,
             "esta_vigente": None,
             "fecha_vencimiento_detectada": None,
             "nombre_detectado": None,
-            "observacion": f"Imagen {fmt} válida ({w}×{h}px) pero texto no legible — tipo asumido: {label}",
+            "observacion": f"Imagen {fmt} válida ({w}×{h}px) — texto no legible por OCR, tipo asumido: {label}",
             "confianza": "media",
         }
 
     return _analizar_texto(texto_ocr, tipo_esperado, fuente=f"imagen {fmt} (OCR)")
+
+
+# ─── OCR multi-estrategia ──────────────────────────────────────────────────────
+
+def _ocr_multi_estrategia(img: Image.Image) -> str:
+    """
+    Prueba varias preparaciones y devuelve el texto con más caracteres.
+    Estrategias:
+      1. Escala mínima 1600px, escala grises, contraste ×2
+      2. Igual + filtro de nitidez
+      3. Igual + binarización adaptada (threshold)
+      4. PSM 11 (texto disperso) con escala grises
+    """
+    img_rgb = img.convert("RGB")
+    w, h = img_rgb.size
+
+    # Escalar si demasiado pequeña
+    if w < 1600:
+        scale = 1600 / w
+        img_rgb = img_rgb.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+
+    mejor = ""
+
+    def _run(img_proc: Image.Image, config: str) -> str:
+        try:
+            return pytesseract.image_to_string(img_proc, lang=TESSERACT_LANG, config=config)
+        except Exception:
+            return ""
+
+    # Estrategia 1 — escala grises + contraste
+    g1 = ImageEnhance.Contrast(img_rgb.convert("L")).enhance(2.0)
+    t1 = _run(g1, TESSERACT_CONFIG)
+    if len(t1) > len(mejor):
+        mejor = t1
+
+    # Estrategia 2 — escala grises + contraste fuerte + nitidez
+    g2 = ImageEnhance.Contrast(img_rgb.convert("L")).enhance(3.0).filter(ImageFilter.SHARPEN)
+    t2 = _run(g2, TESSERACT_CONFIG)
+    if len(t2) > len(mejor):
+        mejor = t2
+
+    # Estrategia 3 — binarización fija (funciona bien en documentos impresos)
+    g3 = img_rgb.convert("L").point(lambda x: 255 if x > 140 else 0)
+    t3 = _run(g3, TESSERACT_CONFIG)
+    if len(t3) > len(mejor):
+        mejor = t3
+
+    # Estrategia 4 — escala grises + texto disperso (fotos de documentos físicos)
+    g4 = ImageEnhance.Contrast(img_rgb.convert("L")).enhance(2.0)
+    t4 = _run(g4, TESSERACT_CONFIG_SPARSE)
+    if len(t4) > len(mejor):
+        mejor = t4
+
+    return mejor
 
 
 # ─── Análisis de texto extraído ───────────────────────────────────────────────
@@ -364,39 +432,7 @@ def _analizar_texto(texto: str, tipo_esperado: str, fuente: str) -> dict:
     }
 
 
-# ─── Preprocesamiento de imagen para OCR ────────────────────────────────────
-
-def _preprocesar_para_ocr(img: Image.Image) -> Image.Image:
-    """
-    Optimiza la imagen para Tesseract:
-    1. Escala a mínimo 1500px de ancho (Tesseract funciona mejor con imágenes grandes)
-    2. Convierte a escala de grises
-    3. Aumenta el contraste
-    4. Aplica ligero nitidez
-    """
-    img = img.convert("RGB")
-    w, h = img.size
-
-    # Escalar si la imagen es demasiado pequeña
-    if w < 1500:
-        factor = 1500 / w
-        nuevo_w = int(w * factor)
-        nuevo_h = int(h * factor)
-        img = img.resize((nuevo_w, nuevo_h), Image.LANCZOS)
-
-    # Escala de grises
-    img = img.convert("L")
-
-    # Aumento de contraste
-    img = ImageEnhance.Contrast(img).enhance(2.0)
-
-    # Nitidez
-    img = img.filter(ImageFilter.SHARPEN)
-
-    return img
-
-
-# ─── Helpers ─────────────────────────────────────────────────────────────────
+# ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _score_tipo(texto_upper: str, tipo: str) -> int:
     info = PATRONES_TIPO.get(tipo)
@@ -421,9 +457,9 @@ def _extraer_fecha_vencimiento(texto: str) -> tuple[Optional[str], Optional[bool
             elif fmt == "ymd":
                 y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
             elif fmt == "dmy_es":
-                d = int(m.group(1))
+                d  = int(m.group(1))
                 mo = MESES_ES.get(m.group(2).lower(), 0)
-                y = int(m.group(3))
+                y  = int(m.group(3))
             else:
                 continue
             if not (1 <= mo <= 12 and 1 <= d <= 31 and 2000 <= y <= 2060):
@@ -437,10 +473,10 @@ def _extraer_fecha_vencimiento(texto: str) -> tuple[Optional[str], Optional[bool
 
 def _extraer_nombre(texto: str) -> Optional[str]:
     patrones = [
-        r"(?:nombres?\s+y\s+apellidos?|titular|nombre\s+completo)\s*[:\-]?\s*"
+        r"(?:nombres?\s+y\s+apellidos?|titular|nombre\s+completo|nombre\s+del?\s+trabajador)\s*[:\-]?\s*"
         r"([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{8,55}?)(?=\n|\r|$|\s{2,})",
-        r"(?:se\s+certifica\s+que)\s+([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{8,55}?)(?:\s+identificad|\s+con\s+c)",
-        r"(?:señor[a]?)\s+([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{8,55}?)(?:\s+identificad|\s+con\s+)",
+        r"(?:certifica\s+que)\s+(?:el\s+señor|la\s+señora)?\s*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{8,55}?)(?:\s+identificad|\s+con\s+c)",
+        r"(?:señor[a]?\s+)([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{8,55}?)(?:\s+identificad|\s+con\s+)",
     ]
     tu = texto.upper()
     for p in patrones:

@@ -1,16 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   CheckCircle, XCircle, AlertTriangle, FileText,
   Download, ChevronDown, ChevronUp, Search, Filter, Clock, Archive, Wrench,
   FileSpreadsheet, Square, CheckSquare, Upload, X as XIcon, ClipboardCheck,
+  ShieldCheck, Loader2, Cpu,
 } from "lucide-react";
 import clsx from "clsx";
 import { createClient } from "@/lib/supabase/client";
-import type { Personal, Proveedor, TipoDocumento } from "@/types";
+import type { Personal, Proveedor, TipoDocumento, DocumentoPersonal } from "@/types";
 import { ACTIVIDADES_CONTRATISTA, CARGOS_CONTRATISTA } from "@/types";
 import { ChecklistDocumentacion } from "./ChecklistDocumentacion";
+
+interface VerifBanner {
+  verificados: number;
+  total: number;
+  resultados: { id: string; tipo: string; verificado: boolean; confianza: string; observacion: string }[];
+}
 
 const TIPO_LABELS: Record<TipoDocumento, string> = {
   cedula: "Cédula", licencia: "Licencia", arl: "ARL", soat: "SOAT", tecnicomecanica: "Tecnomecánica",
@@ -71,11 +78,87 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
   const [bulkLoading, setBulkLoading] = useState(false);
   const [exportandoExcel, setExportandoExcel] = useState(false);
   const [checklistAbierto, setChecklistAbierto] = useState<string | null>(null);
+  const [verificandoPorId, setVerificandoPorId] = useState<Set<string>>(new Set());
+  const [verificacionBanners, setVerificacionBanners] = useState<Record<string, VerifBanner>>({});
+  const procesadosRef = useRef<Set<string>>(new Set());
+  const listaRef = useRef<Personal[]>(personal);
   const [modalError, setModalError] = useState("");
   const [bulkError, setBulkError] = useState("");
   const [exportError, setExportError] = useState("");
   const [corrError, setCorrError] = useState("");
   const supabase = createClient();
+
+  // Mantener ref sincronizada con lista para usarla en useEffect sin deps
+  useEffect(() => { listaRef.current = lista; }, [lista]);
+
+  // Auto-verificación al expandir una persona
+  useEffect(() => {
+    if (!expandido) return;
+    if (procesadosRef.current.has(expandido)) return;
+    procesadosRef.current.add(expandido);
+
+    const persona = listaRef.current.find((p) => p.id === expandido);
+    const docs = persona?.documentos ?? [];
+    if (docs.length === 0) return;
+
+    // Si todos los docs ya tienen resultado guardado → construir banner directamente
+    if (docs.every((d) => d.verificado_auto || d.verificacion_observacion)) {
+      const verificados = docs.filter((d) => d.verificado_auto).length;
+      setVerificacionBanners((prev) => ({
+        ...prev,
+        [expandido]: {
+          verificados,
+          total: docs.length,
+          resultados: docs.map((d) => ({
+            id: d.id,
+            tipo: d.tipo,
+            verificado: d.verificado_auto,
+            confianza: d.verificacion_confianza ?? "media",
+            observacion: d.verificacion_observacion ?? "",
+          })),
+        },
+      }));
+      return;
+    }
+
+    // Llamar al servicio de verificación automática (silencioso, sin bloquear UI)
+    setVerificandoPorId((prev) => new Set(Array.from(prev).concat(expandido)));
+    fetch(`/api/personal/${expandido}/documentos/verificar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (!json?.data) return;
+        const banner: VerifBanner = json.data;
+        setVerificacionBanners((prev) => ({ ...prev, [expandido]: banner }));
+        // Actualizar docs en la lista local con resultados de verificación
+        setLista((prev) =>
+          prev.map((p) => {
+            if (p.id !== expandido) return p;
+            return {
+              ...p,
+              documentos: p.documentos?.map((doc) => {
+                const r = banner.resultados.find((x) => x.id === doc.id);
+                if (!r) return doc;
+                return {
+                  ...doc,
+                  verificado_auto: r.verificado,
+                  verificacion_confianza: r.confianza as DocumentoPersonal["verificacion_confianza"],
+                  verificacion_observacion: r.observacion,
+                  verificado_at: new Date().toISOString(),
+                };
+              }),
+            };
+          })
+        );
+      })
+      .catch(() => { /* verificación falla silenciosamente */ })
+      .finally(() => {
+        setVerificandoPorId((prev) => { const n = new Set(prev); n.delete(expandido); return n; });
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandido]);
 
   const toggleSeleccion = (id: string) => {
     setSeleccionados((prev) => {
@@ -512,6 +595,17 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
                     </div>
                   )}
 
+                  {/* Banner verificación automática */}
+                  {verificandoPorId.has(p.id) && (
+                    <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+                      <Loader2 size={14} className="text-blue-500 animate-spin shrink-0" />
+                      <p className="text-[12px] text-blue-600">Verificando documentos automáticamente...</p>
+                    </div>
+                  )}
+                  {!verificandoPorId.has(p.id) && verificacionBanners[p.id] && (
+                    <BannerVerificacion banner={verificacionBanners[p.id]} tipoLabels={TIPO_LABELS} />
+                  )}
+
                   {/* Docs persona */}
                   <DocSection title="Documentos del personal" tipos={tiposRequeridos} docs={p.documentos ?? []} onVer={verDoc} />
                   {/* Docs SST (solo si se cargaron) */}
@@ -821,6 +915,51 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
               </button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── BannerVerificacion ───────────────────────────────
+function BannerVerificacion({ banner, tipoLabels }: { banner: VerifBanner; tipoLabels: Record<string, string> }) {
+  const todosBien = banner.verificados === banner.total && banner.total > 0;
+  const ninguno   = banner.verificados === 0;
+  const fallidos  = banner.resultados.filter((r) => !r.verificado);
+
+  return (
+    <div className={clsx(
+      "rounded-xl border p-4 space-y-2",
+      todosBien  ? "bg-green-50 border-green-200"
+      : ninguno  ? "bg-red-50 border-red-200"
+      : "bg-amber-50 border-amber-200"
+    )}>
+      <div className="flex items-start gap-2.5">
+        {todosBien
+          ? <ShieldCheck size={16} className="text-green-600 shrink-0 mt-0.5" />
+          : <Cpu size={16} className="text-amber-500 shrink-0 mt-0.5" />}
+        <div>
+          <p className="text-[12px] font-semibold text-gray-800">
+            Verificación previa del sistema — {banner.verificados}/{banner.total} documento(s) correcto(s)
+          </p>
+          <p className="text-[11px] text-gray-500 mt-0.5">
+            {todosBien
+              ? "Todos los documentos cumplen con el formato y tipo esperado. Se recomienda igualmente verificarlos como administrador."
+              : `${fallidos.length} documento(s) requieren revisión manual. Los documentos con problemas se muestran abajo.`}
+          </p>
+        </div>
+      </div>
+      {fallidos.length > 0 && (
+        <div className="pl-7 space-y-0.5">
+          {fallidos.map((r) => (
+            <p key={r.id} className="text-[11px] text-red-600 flex items-start gap-1.5">
+              <span className="shrink-0 mt-px">✗</span>
+              <span>
+                <span className="font-semibold">{tipoLabels[r.tipo] ?? r.tipo}</span>
+                {r.observacion ? <span className="text-gray-400"> — {r.observacion}</span> : null}
+              </span>
+            </p>
+          ))}
         </div>
       )}
     </div>
