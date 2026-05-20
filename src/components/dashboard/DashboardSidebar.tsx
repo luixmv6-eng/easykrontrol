@@ -69,7 +69,7 @@ export function DashboardSidebar({ rol, isOpen = false, onClose }: DashboardSide
         <div className="flex-1">
           <NavLinks links={links} pathname={pathname} />
         </div>
-        <p className="px-6 pt-4 text-[10px] text-gray-300 font-medium tracking-wider">v1.0.0</p>
+        <p className="px-6 pt-4 text-[10px] text-gray-300 font-medium tracking-wider">v2.0.0</p>
       </aside>
 
       {/* ── Drawer móvil ── */}
@@ -99,7 +99,7 @@ export function DashboardSidebar({ rol, isOpen = false, onClose }: DashboardSide
               </button>
             </div>
             <NavLinks links={links} pathname={pathname} onClose={onClose} />
-            <p className="px-6 pt-4 text-[10px] text-gray-300 font-medium tracking-wider">v1.0.0</p>
+            <p className="px-6 pt-4 text-[10px] text-gray-300 font-medium tracking-wider">v2.0.0</p>
           </aside>
         </div>
       )}

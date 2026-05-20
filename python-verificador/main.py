@@ -10,7 +10,7 @@ from verificador import verificar
 app = FastAPI(
     title="Verificador de Documentos",
     description="Verifica que archivos PDF/imagen corresponden al tipo de documento colombiano esperado.",
-    version="1.0.0",
+    version="2.0.0",
 )
 
 
@@ -31,7 +31,7 @@ class VerificacionResponse(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "1.0.0"}
+    return {"status": "ok", "version": "2.0.0"}
 
 
 @app.post("/verificar", response_model=VerificacionResponse)
