@@ -189,9 +189,9 @@ async function _verificarPDF(buf: Buffer, tipo: TipoDocumento): Promise<Verifica
 
   try {
     // pdf-parse puede fallar en algunos PDFs; lo manejamos silenciosamente
+    // Importamos desde /lib/ para evitar que pdf-parse ejecute tests al requerir el módulo
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mod = await import("pdf-parse") as any;
-    const pdfParse = (mod.default ?? mod) as (
+    const pdfParse = (await import("pdf-parse/lib/pdf-parse.js" as any)).default as (
       b: Buffer,
       opts?: object
     ) => Promise<{ text: string; numpages: number }>;
