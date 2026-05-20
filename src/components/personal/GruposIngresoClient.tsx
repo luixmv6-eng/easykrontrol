@@ -8,6 +8,8 @@ import type { GrupoIngreso, Personal, TipoDocumento } from "@/types";
 
 const TIPO_LABELS: Record<TipoDocumento, string> = {
   cedula: "Cédula", licencia: "Licencia", arl: "ARL", soat: "SOAT", tecnicomecanica: "Tecnomecánica",
+  planilla_aportes: "Planilla Aportes", examenes_medicos: "Exámenes Médicos",
+  certificados_especialidad: "Cert. Especialidad", arl_sgsst: "ARL SG-SST", responsable_sgsst: "Resp. SG-SST",
 };
 
 type Decision = { accion: "aprobar" | "rechazar"; motivo: string };

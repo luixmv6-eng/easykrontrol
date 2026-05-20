@@ -14,6 +14,9 @@ import { ChecklistDocumentacion } from "./ChecklistDocumentacion";
 
 const TIPO_LABELS: Record<TipoDocumento, string> = {
   cedula: "Cédula", licencia: "Licencia", arl: "ARL", soat: "SOAT", tecnicomecanica: "Tecnomecánica",
+  planilla_aportes: "Planilla Aportes", examenes_medicos: "Exámenes Médicos",
+  certificados_especialidad: "Cert. Especialidad", arl_sgsst: "ARL SG-SST",
+  responsable_sgsst: "Resp. SG-SST",
 };
 
 const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
@@ -395,6 +398,8 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
         {filtrado.map((p) => {
           const isOpen = expandido === p.id;
           const tiposRequeridos: TipoDocumento[] = ["cedula", "licencia", "arl"];
+          const tiposSST: TipoDocumento[] = (["planilla_aportes", "examenes_medicos", "certificados_especialidad", "arl_sgsst", "responsable_sgsst"] as TipoDocumento[])
+            .filter((t) => p.documentos?.some((d) => d.tipo === t));
           const tiposVehiculo: TipoDocumento[] = ["soat", "tecnicomecanica"];
           const badge = ESTADO_BADGE[p.estado] ?? { label: p.estado, cls: "bg-gray-100 text-gray-500" };
           const docsPorVencer = p.documentos?.filter((d) => { const dias = diasHastaVencer(d.fecha_vencimiento); return dias !== null && dias <= 60 && dias > 0; });
@@ -509,6 +514,10 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
 
                   {/* Docs persona */}
                   <DocSection title="Documentos del personal" tipos={tiposRequeridos} docs={p.documentos ?? []} onVer={verDoc} />
+                  {/* Docs SST (solo si se cargaron) */}
+                  {tiposSST.length > 0 && (
+                    <DocSection title="Documentos SST" tipos={tiposSST} docs={p.documentos ?? []} onVer={verDoc} />
+                  )}
                   {/* Docs vehículo */}
                   {p.vehiculo_id && <DocSection title={`Documentos del vehículo (${p.vehiculo?.placa ?? ""})`} tipos={tiposVehiculo} docs={p.documentos ?? []} onVer={verDoc} />}
 
@@ -822,7 +831,7 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
 function DocSection({ title, tipos, docs, onVer }: {
   title: string;
   tipos: TipoDocumento[];
-  docs: { tipo: TipoDocumento; url: string; nombre_archivo: string | null; fecha_vencimiento: string | null }[];
+  docs: { tipo: TipoDocumento; url: string; nombre_archivo: string | null; fecha_vencimiento: string | null; verificado_auto?: boolean; verificacion_confianza?: string | null; verificacion_observacion?: string | null }[];
   onVer: (url: string) => void;
 }) {
   const diasHastaVencer = (fecha: string | null) => fecha ? Math.ceil((new Date(fecha).getTime() - Date.now()) / 86400000) : null;
@@ -845,6 +854,16 @@ function DocSection({ title, tipos, docs, onVer }: {
                 <div className="min-w-0">
                   <p className={clsx("text-[13px] font-semibold", doc ? (vencido ? "text-red-700" : alerta ? "text-amber-700" : "text-green-700") : "text-red-500")}>{TIPO_LABELS[tipo]}</p>
                   {doc?.nombre_archivo && <p className="text-[10px] text-gray-400 truncate">{doc.nombre_archivo}</p>}
+                  {doc?.verificado_auto && (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-green-600 bg-green-100 px-1.5 py-0.5 rounded mt-0.5">
+                      ✓ Verificado · {doc.verificacion_confianza ?? ""}
+                    </span>
+                  )}
+                  {doc && !doc.verificado_auto && doc.verificacion_observacion && (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded mt-0.5">
+                      ⚠ {doc.verificacion_observacion}
+                    </span>
+                  )}
                   {doc?.fecha_vencimiento && (
                     <p className={clsx("text-[11px] mt-0.5", vencido ? "text-red-600 font-semibold" : alerta ? "text-amber-600" : "text-gray-500")}>
                       {vencido ? "VENCIDO · " : "Vence: "}{new Date(doc.fecha_vencimiento).toLocaleDateString("es-CO")}{dias !== null && !vencido && ` (${dias}d)`}

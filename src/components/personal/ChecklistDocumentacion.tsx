@@ -3,14 +3,17 @@
 import { useState, useEffect } from "react";
 import {
   CheckCircle2, MinusCircle, ChevronDown, ChevronUp,
-  Loader2, AlertCircle, Save,
+  Loader2, AlertCircle, Save, Cpu, ShieldCheck,
 } from "lucide-react";
 import clsx from "clsx";
 import {
   REQUISITOS_CHECKLIST,
+  DOC_A_REQUISITO,
+  TIPO_DOCUMENTO_LABEL,
   type EstadoRequisito,
   type ConceptoChecklist,
   type RevisionChecklist,
+  type DocumentoPersonal,
 } from "@/types";
 
 interface PersonalParaChecklist {
@@ -20,7 +23,7 @@ interface PersonalParaChecklist {
   actividad_a_realizar?: string | null;
   vehiculo_id?: string | null;
   proveedor?: { nombre: string; nit: string } | null;
-  documentos?: { tipo: string }[];
+  documentos?: DocumentoPersonal[];
 }
 
 interface Props {
@@ -32,22 +35,42 @@ interface Props {
 type EstadosMap = Record<string, EstadoRequisito>;
 type ObsMap = Record<string, string>;
 
+interface VerificacionResultado {
+  verificados: number;
+  total: number;
+  resultados: { id: string; tipo: string; verificado: boolean; confianza: string; observacion: string }[];
+}
+
 function buildInitialEstados(
-  docsSubidos: string[],
+  docs: DocumentoPersonal[],
   tieneVehiculo: boolean
 ): EstadosMap {
+  const docsVerificados = docs.filter((d) => d.verificado_auto);
+  const docsSubidos = docs.map((d) => d.tipo);
+
   return Object.fromEntries(
     REQUISITOS_CHECKLIST.map((r) => {
       if (r.aplicaConVehiculo && !tieneVehiculo) return [r.key, "na" as EstadoRequisito];
+
+      // Si el doc correspondiente fue verificado automáticamente → OK automático
+      const reqKey = r.key;
+      const tieneDocVerificado = docsVerificados.some((d) => DOC_A_REQUISITO[d.tipo] === reqKey);
+      if (tieneDocVerificado) return [r.key, "ok" as EstadoRequisito];
+
+      // req_soportes_vehiculos → ok solo si soat Y tecnicomecanica verificados
+      if (r.key === "req_soportes_vehiculos") {
+        const soatOk = docsVerificados.some((d) => d.tipo === "soat");
+        const tecoOk = docsVerificados.some((d) => d.tipo === "tecnicomecanica");
+        if (soatOk && tecoOk) return [r.key, "ok" as EstadoRequisito];
+      }
+
+      // Auto-detect por doc subido (sin verificar)
       if (r.key === "req_cedula" && docsSubidos.includes("cedula")) return [r.key, "ok" as EstadoRequisito];
       if (r.key === "req_licencia_conductor" && docsSubidos.includes("licencia")) return [r.key, "ok" as EstadoRequisito];
       if (r.key === "req_eps_arl_afp" && docsSubidos.includes("arl")) return [r.key, "ok" as EstadoRequisito];
-      if (
-        r.key === "req_soportes_vehiculos" &&
-        docsSubidos.includes("soat") &&
-        docsSubidos.includes("tecnicomecanica")
-      )
+      if (r.key === "req_soportes_vehiculos" && docsSubidos.includes("soat") && docsSubidos.includes("tecnicomecanica"))
         return [r.key, "ok" as EstadoRequisito];
+
       return [r.key, "pendiente" as EstadoRequisito];
     })
   );
@@ -86,11 +109,15 @@ const CONCEPTO_BADGE: Record<ConceptoChecklist, string> = {
 
 export function ChecklistDocumentacion({ persona, adminNombre = "", adminCargo = "" }: Props) {
   const tieneVehiculo = !!persona.vehiculo_id;
-  const docsSubidos = (persona.documentos ?? []).map((d) => d.tipo);
+  const docs = persona.documentos ?? [];
 
-  const [estados, setEstados] = useState<EstadosMap>(() =>
-    buildInitialEstados(docsSubidos, tieneVehiculo)
-  );
+  const docsVerificados = docs.filter((d) => d.verificado_auto);
+  const todosVerificados =
+    docs.length > 0 &&
+    docs.every((d) => d.verificado_auto) &&
+    docsVerificados.every((d) => d.verificacion_confianza !== "baja");
+
+  const [estados, setEstados] = useState<EstadosMap>(() => buildInitialEstados(docs, tieneVehiculo));
   const [observaciones, setObservaciones] = useState<ObsMap>(buildInitialObs);
   const [concepto, setConcepto] = useState<ConceptoChecklist>("pendiente");
   const [autoConcepto, setAutoConcepto] = useState(true);
@@ -104,10 +131,11 @@ export function ChecklistDocumentacion({ persona, adminNombre = "", adminCargo =
   const [revision, setRevision] = useState<RevisionChecklist | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [verificando, setVerificando] = useState(false);
+  const [verificacionResult, setVerificacionResult] = useState<VerificacionResultado | null>(null);
   const [error, setError] = useState("");
   const [savedOk, setSavedOk] = useState(false);
 
-  // Cargar revisión existente
   useEffect(() => {
     fetch(`/api/personal/${persona.id}/checklist`)
       .then((r) => r.json())
@@ -136,7 +164,6 @@ export function ChecklistDocumentacion({ persona, adminNombre = "", adminCargo =
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [persona.id]);
 
-  // Auto-calcular concepto cuando autoConcepto está activo
   useEffect(() => {
     if (!autoConcepto) return;
     setConcepto(calcularConcepto(estados));
@@ -153,6 +180,45 @@ export function ChecklistDocumentacion({ persona, adminNombre = "", adminCargo =
       next.has(key) ? next.delete(key) : next.add(key);
       return next;
     });
+  };
+
+  const handleVerificar = async () => {
+    setVerificando(true);
+    setError("");
+    setVerificacionResult(null);
+    try {
+      const res = await fetch(`/api/personal/${persona.id}/documentos/verificar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Error en verificación");
+
+      const result: VerificacionResultado = json.data;
+      setVerificacionResult(result);
+
+      // Actualizar estados con resultados de verificación automática
+      const newEstados = { ...estados };
+      for (const r of result.resultados) {
+        if (!r.verificado) continue;
+        const reqKey = DOC_A_REQUISITO[r.tipo as keyof typeof DOC_A_REQUISITO];
+        if (!reqKey) continue;
+
+        if (r.tipo === "soat" || r.tipo === "tecnicomecanica") {
+          const soatOk = result.resultados.find((x) => x.tipo === "soat")?.verificado;
+          const tecoOk = result.resultados.find((x) => x.tipo === "tecnicomecanica")?.verificado;
+          if (soatOk && tecoOk) newEstados["req_soportes_vehiculos"] = "ok";
+        } else {
+          newEstados[reqKey] = "ok";
+        }
+      }
+      setEstados(newEstados);
+      setAutoConcepto(true);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Error en verificación automática");
+    } finally {
+      setVerificando(false);
+    }
   };
 
   const handleGuardar = async () => {
@@ -190,6 +256,7 @@ export function ChecklistDocumentacion({ persona, adminNombre = "", adminCargo =
   const totalActivos = REQUISITOS_CHECKLIST.filter(
     (r) => !(r.aplicaConVehiculo && !tieneVehiculo)
   ).length;
+  const todoCumple = cumplidos === totalActivos;
 
   if (loading) {
     return (
@@ -202,6 +269,77 @@ export function ChecklistDocumentacion({ persona, adminNombre = "", adminCargo =
 
   return (
     <div className="space-y-4 mt-3">
+      {/* Banner: todos los documentos verificados automáticamente */}
+      {todosVerificados && todoCumple && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
+          <ShieldCheck size={20} className="text-green-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-[13px] font-semibold text-green-800">
+              ✓ Todos los documentos han sido verificados correctamente
+            </p>
+            <p className="text-[12px] text-green-600 mt-0.5">
+              La verificación automática confirmó que los documentos son válidos y corresponden
+              al tipo esperado. El checklist se marcó automáticamente.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Resumen verificación automática */}
+      {verificacionResult && (
+        <div className={clsx(
+          "border rounded-xl p-4 space-y-2",
+          verificacionResult.verificados === verificacionResult.total
+            ? "bg-green-50 border-green-200"
+            : "bg-amber-50 border-amber-200"
+        )}>
+          <p className="text-[12px] font-semibold text-gray-700 flex items-center gap-2">
+            <Cpu size={13} className="text-ek-500" />
+            Verificación automática: {verificacionResult.verificados}/{verificacionResult.total} documentos correctos
+          </p>
+          <div className="space-y-1">
+            {verificacionResult.resultados.map((r) => (
+              <div key={r.id} className="flex items-center gap-2 text-[11px]">
+                <span className={r.verificado ? "text-green-600" : "text-red-500"}>
+                  {r.verificado ? "✓" : "✗"}
+                </span>
+                <span className="text-gray-600">{TIPO_DOCUMENTO_LABEL[r.tipo as keyof typeof TIPO_DOCUMENTO_LABEL] ?? r.tipo}</span>
+                <span className="text-gray-400">— {r.observacion}</span>
+                <span className={clsx(
+                  "ml-auto px-1.5 py-0.5 rounded text-[10px] font-medium",
+                  r.confianza === "alta" ? "bg-green-100 text-green-700"
+                    : r.confianza === "media" ? "bg-yellow-100 text-yellow-700"
+                    : "bg-red-100 text-red-700"
+                )}>
+                  {r.confianza}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Botón verificación automática */}
+      {docs.length > 0 && (
+        <button
+          type="button"
+          onClick={handleVerificar}
+          disabled={verificando}
+          className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-ek-200 text-ek-700 rounded-xl text-[13px] font-semibold hover:bg-ek-50 transition-colors disabled:opacity-60"
+        >
+          {verificando ? (
+            <><Loader2 size={14} className="animate-spin" /> Verificando documentos...</>
+          ) : (
+            <><Cpu size={14} /> Verificar documentos automáticamente</>
+          )}
+        </button>
+      )}
+      {docs.length === 0 && (
+        <div className="text-[12px] text-gray-400 bg-gray-50 rounded-lg p-3 text-center">
+          No hay documentos cargados para verificar.
+        </div>
+      )}
+
       {/* Encabezado del formulario oficial */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
         <div className="flex items-center justify-between">
@@ -247,14 +385,12 @@ export function ChecklistDocumentacion({ persona, adminNombre = "", adminCargo =
           <div
             className={clsx(
               "h-full rounded-full transition-all duration-300",
-              cumplidos === totalActivos ? "bg-green-400" : "bg-ek-400"
+              todoCumple ? "bg-green-400" : "bg-ek-400"
             )}
             style={{ width: `${totalActivos > 0 ? (cumplidos / totalActivos) * 100 : 0}%` }}
           />
         </div>
-        <span className="text-[11px] text-gray-500 shrink-0">
-          {cumplidos}/{totalActivos} OK
-        </span>
+        <span className="text-[11px] text-gray-500 shrink-0">{cumplidos}/{totalActivos} OK</span>
       </div>
 
       {/* Tabla de requisitos */}
@@ -272,6 +408,11 @@ export function ChecklistDocumentacion({ persona, adminNombre = "", adminCargo =
           const obsExpandida = obsExpandidas.has(req.key);
           const obsVal = observaciones[req.obsKey];
 
+          // Buscar si hay doc verificado automáticamente para este requisito
+          const docVerificado = docs.find(
+            (d) => d.verificado_auto && DOC_A_REQUISITO[d.tipo] === req.key
+          );
+
           return (
             <div
               key={req.key}
@@ -283,11 +424,18 @@ export function ChecklistDocumentacion({ persona, adminNombre = "", adminCargo =
               <div className="grid grid-cols-[1fr_auto_auto_auto] items-center px-3 py-2.5 gap-2">
                 <div className="min-w-0">
                   <p className="text-[12px] text-gray-700 leading-snug">{req.label}</p>
-                  {esAutoNA && (
-                    <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded mt-0.5 inline-block">
-                      Sin vehículo
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    {esAutoNA && (
+                      <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                        Sin vehículo
+                      </span>
+                    )}
+                    {docVerificado && (
+                      <span className="text-[10px] text-green-600 bg-green-100 px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <Cpu size={9} /> Verificado · {docVerificado.verificacion_confianza}
+                      </span>
+                    )}
+                  </div>
                   {obsVal && !obsExpandida && (
                     <p className="text-[11px] text-gray-400 italic mt-0.5 truncate">
                       &ldquo;{obsVal}&rdquo;
@@ -295,7 +443,6 @@ export function ChecklistDocumentacion({ persona, adminNombre = "", adminCargo =
                   )}
                 </div>
 
-                {/* OK */}
                 <button
                   type="button"
                   disabled={esAutoNA}
@@ -306,12 +453,10 @@ export function ChecklistDocumentacion({ persona, adminNombre = "", adminCargo =
                       ? "bg-green-100 text-green-600"
                       : "text-gray-300 hover:text-green-400 hover:bg-green-50"
                   )}
-                  aria-label="Marcar OK"
                 >
                   <CheckCircle2 size={16} />
                 </button>
 
-                {/* N/A */}
                 <button
                   type="button"
                   disabled={esAutoNA}
@@ -322,17 +467,14 @@ export function ChecklistDocumentacion({ persona, adminNombre = "", adminCargo =
                       ? "bg-gray-200 text-gray-500"
                       : "text-gray-300 hover:text-gray-400 hover:bg-gray-50"
                   )}
-                  aria-label="Marcar N/A"
                 >
                   <MinusCircle size={16} />
                 </button>
 
-                {/* Toggle observación */}
                 <button
                   type="button"
                   onClick={() => toggleObs(req.key)}
                   className="w-14 text-[11px] text-gray-400 hover:text-ek-500 flex items-center justify-center gap-0.5 transition-colors"
-                  aria-label="Observaciones"
                 >
                   {obsExpandida ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                   Obs.
@@ -382,65 +524,40 @@ export function ChecklistDocumentacion({ persona, adminNombre = "", adminCargo =
           ))}
         </div>
         {autoConcepto && concepto !== "pendiente" && (
-          <p className="text-[11px] text-gray-400">Calculado automáticamente · Puedes ajustarlo manualmente</p>
+          <p className="text-[11px] text-gray-400">Calculado automáticamente · Puedes ajustarlo</p>
         )}
       </div>
 
       {/* Firmantes */}
       <div className="space-y-2">
-        <p className="text-[12px] font-semibold text-gray-600 uppercase tracking-wide">
-          Revisa Gestión Contratista
-        </p>
+        <p className="text-[12px] font-semibold text-gray-600 uppercase tracking-wide">Revisa Gestión Contratista</p>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <input
-              type="text"
-              value={firmante1Nombre}
-              onChange={(e) => setFirmante1Nombre(e.target.value)}
+            <input type="text" value={firmante1Nombre} onChange={(e) => setFirmante1Nombre(e.target.value)}
               placeholder="Nombre firmante 1"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-ek-400"
-            />
-            <input
-              type="text"
-              value={firmante1Cargo}
-              onChange={(e) => setFirmante1Cargo(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-ek-400" />
+            <input type="text" value={firmante1Cargo} onChange={(e) => setFirmante1Cargo(e.target.value)}
               placeholder="Cargo firmante 1"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-ek-400"
-            />
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-ek-400" />
           </div>
           <div className="space-y-2">
-            <input
-              type="text"
-              value={firmante2Nombre}
-              onChange={(e) => setFirmante2Nombre(e.target.value)}
+            <input type="text" value={firmante2Nombre} onChange={(e) => setFirmante2Nombre(e.target.value)}
               placeholder="Nombre firmante 2"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-ek-400"
-            />
-            <input
-              type="text"
-              value={firmante2Cargo}
-              onChange={(e) => setFirmante2Cargo(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-ek-400" />
+            <input type="text" value={firmante2Cargo} onChange={(e) => setFirmante2Cargo(e.target.value)}
               placeholder="Cargo firmante 2"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-ek-400"
-            />
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-ek-400" />
           </div>
         </div>
       </div>
 
       {/* Observaciones generales */}
       <div>
-        <label className="block text-[12px] font-medium text-gray-600 mb-1">
-          Observaciones generales
-        </label>
-        <textarea
-          value={obsGenerales}
-          onChange={(e) => setObsGenerales(e.target.value)}
-          rows={2}
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-ek-400 resize-none"
-        />
+        <label className="block text-[12px] font-medium text-gray-600 mb-1">Observaciones generales</label>
+        <textarea value={obsGenerales} onChange={(e) => setObsGenerales(e.target.value)} rows={2}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-ek-400 resize-none" />
       </div>
 
-      {/* Feedback */}
       {error && (
         <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg p-3">
           <AlertCircle size={14} className="text-red-500 shrink-0" />
@@ -454,22 +571,9 @@ export function ChecklistDocumentacion({ persona, adminNombre = "", adminCargo =
         </div>
       )}
 
-      {/* Guardar */}
-      <button
-        type="button"
-        onClick={handleGuardar}
-        disabled={saving}
-        className="w-full py-2.5 bg-ek-500 text-white rounded-lg text-[13px] font-semibold hover:bg-ek-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
-      >
-        {saving ? (
-          <>
-            <Loader2 size={14} className="animate-spin" /> Guardando...
-          </>
-        ) : (
-          <>
-            <Save size={14} /> Guardar revisión
-          </>
-        )}
+      <button type="button" onClick={handleGuardar} disabled={saving}
+        className="w-full py-2.5 bg-ek-500 text-white rounded-xl text-[13px] font-semibold hover:bg-ek-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+        {saving ? <><Loader2 size={14} className="animate-spin" /> Guardando...</> : <><Save size={14} /> Guardar revisión</>}
       </button>
     </div>
   );

@@ -38,7 +38,45 @@ export interface MfaSetupData {
 // ── Dominio ───────────────────────────────────────────
 export type Rol = "admin" | "proveedor";
 export type EstadoPersonal = "pendiente" | "aprobado" | "rechazado" | "inactivo";
-export type TipoDocumento = "cedula" | "licencia" | "arl" | "soat" | "tecnicomecanica";
+export type TipoDocumento =
+  | "cedula" | "licencia" | "arl" | "soat" | "tecnicomecanica"
+  | "planilla_aportes" | "examenes_medicos" | "certificados_especialidad"
+  | "arl_sgsst" | "responsable_sgsst";
+
+export const TIPOS_DOCUMENTO_PERSONA: TipoDocumento[] = [
+  "cedula", "licencia", "arl",
+  "planilla_aportes", "examenes_medicos", "certificados_especialidad",
+  "arl_sgsst", "responsable_sgsst",
+];
+
+export const TIPOS_DOCUMENTO_VEHICULO: TipoDocumento[] = ["soat", "tecnicomecanica"];
+
+export const TIPO_DOCUMENTO_LABEL: Record<TipoDocumento, string> = {
+  cedula: "Cédula de Ciudadanía",
+  licencia: "Licencia de Conducción",
+  arl: "ARL (Afiliación)",
+  soat: "SOAT",
+  tecnicomecanica: "Tecnomecánica",
+  planilla_aportes: "Planilla de Aportes (PILA)",
+  examenes_medicos: "Exámenes Médicos Pre-ocupacionales",
+  certificados_especialidad: "Certificados de Especialidad",
+  arl_sgsst: "Calificación ARL SG-SST",
+  responsable_sgsst: "Certificado Responsable SG-SST",
+};
+
+// Mapeo doc → requisito del checklist
+export const DOC_A_REQUISITO: Partial<Record<TipoDocumento, string>> = {
+  cedula: "req_cedula",
+  licencia: "req_licencia_conductor",
+  arl: "req_eps_arl_afp",
+  soat: "req_soportes_vehiculos",
+  tecnicomecanica: "req_soportes_vehiculos",
+  planilla_aportes: "req_planilla_aportes",
+  examenes_medicos: "req_examenes_medicos",
+  certificados_especialidad: "req_certificados_especialidad",
+  arl_sgsst: "req_arl_sgsst",
+  responsable_sgsst: "req_responsable_sgsst",
+};
 export type EstadoProveedor = "activo" | "inactivo" | "suspendido";
 export type EstadoEvaluacion = "borrador" | "finalizado";
 export type EstadoGrupo = "pendiente" | "revision" | "completado";
@@ -249,6 +287,15 @@ export interface Proveedor {
   updated_at: string;
 }
 
+export interface VerificacionResultado {
+  es_correcto_tipo: boolean;
+  esta_vigente: boolean | null;
+  fecha_vencimiento_detectada: string | null;
+  nombre_detectado: string | null;
+  observacion: string;
+  confianza: "alta" | "media" | "baja";
+}
+
 export interface DocumentoPersonal {
   id: string;
   personal_id: string;
@@ -258,6 +305,11 @@ export interface DocumentoPersonal {
   fecha_inicio_vigencia: string | null;
   fecha_vencimiento: string | null;
   alerta_60_enviada: boolean;
+  verificado_auto: boolean;
+  verificacion_confianza: "alta" | "media" | "baja" | null;
+  verificacion_observacion: string | null;
+  verificacion_resultado: VerificacionResultado | null;
+  verificado_at: string | null;
   created_at: string;
   updated_at: string;
 }

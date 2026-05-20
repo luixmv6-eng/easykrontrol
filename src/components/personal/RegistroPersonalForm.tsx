@@ -22,6 +22,7 @@ import {
 // ─── Types ────────────────────────────────────────────
 type DocEntry = { file: File | null; fecha_inicio_vigencia: string };
 type PersonaDocState = Record<"cedula" | "licencia" | "arl", DocEntry>;
+type SSTDocState = Record<"planilla_aportes" | "examenes_medicos" | "certificados_especialidad" | "arl_sgsst" | "responsable_sgsst", DocEntry>;
 type VehiculoDocState = Record<"soat" | "tecnicomecanica", DocEntry>;
 type VehiculoData = {
   placa: string; marca: string; modelo: string; tipo: string;
@@ -41,6 +42,7 @@ type PersonaGrupo = {
   conVehiculo: boolean;
   vehiculoData: VehiculoData;
   personaDocs: PersonaDocState;
+  sstDocs: SSTDocState;
   vehiculoDocs: VehiculoDocState;
 };
 
@@ -50,6 +52,13 @@ const DOCS_PERSONA = [
   { tipo: "cedula"   as const, label: "Cédula de ciudadanía",   tieneVigencia: false },
   { tipo: "licencia" as const, label: "Licencia de conducción", tieneVigencia: false },
   { tipo: "arl"      as const, label: "ARL (Afiliación)",       tieneVigencia: false },
+];
+const DOCS_SST = [
+  { tipo: "planilla_aportes"        as const, label: "Planilla de Aportes (PILA)",             tieneVigencia: false },
+  { tipo: "examenes_medicos"        as const, label: "Exámenes Médicos Pre-ocupacionales",      tieneVigencia: false },
+  { tipo: "certificados_especialidad" as const, label: "Certificados de Especialidad",         tieneVigencia: false },
+  { tipo: "arl_sgsst"               as const, label: "Calificación ARL SG-SST",                tieneVigencia: false },
+  { tipo: "responsable_sgsst"       as const, label: "Certificado Responsable SG-SST",         tieneVigencia: false },
 ];
 const DOCS_VEHICULO = [
   { tipo: "soat"            as const, label: "SOAT",          tieneVigencia: true },
@@ -72,6 +81,13 @@ const emptyPersonaDocs = (): PersonaDocState => ({
   cedula:   { file: null, fecha_inicio_vigencia: "" },
   licencia: { file: null, fecha_inicio_vigencia: "" },
   arl:      { file: null, fecha_inicio_vigencia: "" },
+});
+const emptySSTDocs = (): SSTDocState => ({
+  planilla_aportes:         { file: null, fecha_inicio_vigencia: "" },
+  examenes_medicos:         { file: null, fecha_inicio_vigencia: "" },
+  certificados_especialidad: { file: null, fecha_inicio_vigencia: "" },
+  arl_sgsst:                { file: null, fecha_inicio_vigencia: "" },
+  responsable_sgsst:        { file: null, fecha_inicio_vigencia: "" },
 });
 const emptyVehiculoDocs = (): VehiculoDocState => ({
   soat:            { file: null, fecha_inicio_vigencia: "" },
@@ -142,6 +158,57 @@ function DocItem({
   );
 }
 
+// ─── Sección Documentos SST (colapsable) ─────────────
+function SSTDocSection({
+  docs, prefix, onFile, onError,
+}: {
+  docs: SSTDocState;
+  prefix: string;
+  onFile: (tipo: keyof SSTDocState, f: File | null) => void;
+  onError: (msg: string) => void;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const cargados = DOCS_SST.filter((d) => docs[d.tipo].file).length;
+  return (
+    <section className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-3">
+      <button type="button" onClick={() => setAbierto(!abierto)}
+        className="w-full flex items-center justify-between text-[14px] font-semibold text-gray-700">
+        <span className="flex items-center gap-2">
+          <FileText size={14} className="text-ek-500" />
+          Documentos SST / Seguridad y Salud en el Trabajo
+          {cargados > 0 && (
+            <span className="text-[11px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-normal">
+              {cargados}/{DOCS_SST.length} cargados
+            </span>
+          )}
+          <span className="text-[11px] text-gray-400 font-normal">(opcional)</span>
+        </span>
+        {abierto ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
+      </button>
+      {abierto && (
+        <>
+          <p className="text-[12px] text-gray-400">
+            Estos documentos son verificados automáticamente cuando el administrador los revisa.
+          </p>
+          {DOCS_SST.map(({ tipo, label }) => (
+            <DocItem
+              key={`${prefix}-${tipo}`}
+              tipo={tipo}
+              label={label}
+              tieneVigencia={false}
+              entry={docs[tipo]}
+              onFile={(f) => onFile(tipo, f)}
+              onFecha={() => {}}
+              inputRef={() => {}}
+              onError={onError}
+            />
+          ))}
+        </>
+      )}
+    </section>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────
 export default function RegistroPersonalForm({ proveedores, rol, proveedorIdFijo }: Props) {
   const supabase = createClient();
@@ -162,6 +229,7 @@ export default function RegistroPersonalForm({ proveedores, rol, proveedorIdFijo
   const [conVehiculo, setConVehiculo] = useState(false);
   const [vehiculoData, setVehiculoData] = useState<VehiculoData>(emptyVehiculoData);
   const [personaDocs, setPersonaDocs] = useState<PersonaDocState>(emptyPersonaDocs);
+  const [sstDocs, setSstDocs] = useState<SSTDocState>(emptySSTDocs);
   const [vehiculoDocs, setVehiculoDocs] = useState<VehiculoDocState>(emptyVehiculoDocs);
 
   // ── Estado grupal ──────────────────────────────────
@@ -183,6 +251,7 @@ export default function RegistroPersonalForm({ proveedores, rol, proveedorIdFijo
   const [curConVehiculo, setCurConVehiculo] = useState(false);
   const [curVehiculo, setCurVehiculo] = useState<VehiculoData>(emptyVehiculoData);
   const [curPersonaDocs, setCurPersonaDocs] = useState<PersonaDocState>(emptyPersonaDocs);
+  const [curSSTDocs, setCurSSTDocs] = useState<SSTDocState>(emptySSTDocs);
   const [curVehiculoDocs, setCurVehiculoDocs] = useState<VehiculoDocState>(emptyVehiculoDocs);
   const [expandedPersona, setExpandedPersona] = useState<string | null>(null);
 
@@ -198,6 +267,7 @@ export default function RegistroPersonalForm({ proveedores, rol, proveedorIdFijo
   async function uploadDocsPersona(
     personalId: string,
     pDocs: PersonaDocState,
+    sstD: SSTDocState,
     vDocs: VehiculoDocState,
     tieneVehiculo: boolean
   ) {
@@ -211,6 +281,17 @@ export default function RegistroPersonalForm({ proveedores, rol, proveedorIdFijo
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tipo, url: path, nombre_archivo: entry.file.name,
           fecha_inicio_vigencia: tieneVigencia ? entry.fecha_inicio_vigencia : null }),
+      });
+    }
+    for (const { tipo } of DOCS_SST) {
+      const entry = sstD[tipo];
+      if (!entry.file) continue;
+      const path = `${personalId}/${tipo}.pdf`;
+      await supabase.storage.from("documentos").upload(path, entry.file, { upsert: true, contentType: "application/pdf" });
+      await fetch(`/api/personal/${personalId}/documentos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tipo, url: path, nombre_archivo: entry.file.name, fecha_inicio_vigencia: null }),
       });
     }
     if (tieneVehiculo) {
@@ -274,7 +355,7 @@ export default function RegistroPersonalForm({ proveedores, rol, proveedorIdFijo
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Error al crear personal");
-      await uploadDocsPersona(json.data.id, personaDocs, vehiculoDocs, conVehiculo);
+      await uploadDocsPersona(json.data.id, personaDocs, sstDocs, vehiculoDocs, conVehiculo);
       setSuccess(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error inesperado");
@@ -297,12 +378,12 @@ export default function RegistroPersonalForm({ proveedores, rol, proveedorIdFijo
       municipio_residencia: curMunicipio,
       arlNombre: curArlNombre, epsNombre: curEpsNombre, afpNombre: curAfpNombre,
       conVehiculo: curConVehiculo, vehiculoData: { ...curVehiculo },
-      personaDocs: curPersonaDocs, vehiculoDocs: curVehiculoDocs,
+      personaDocs: curPersonaDocs, sstDocs: curSSTDocs, vehiculoDocs: curVehiculoDocs,
     }]);
     setCurNombres(""); setCurCedula(""); setCurActividad(""); setCurCargo(""); setCurMunicipio("");
     setCurArlNombre(""); setCurEpsNombre(""); setCurAfpNombre("");
     setCurConVehiculo(false); setCurVehiculo(emptyVehiculoData());
-    setCurPersonaDocs(emptyPersonaDocs()); setCurVehiculoDocs(emptyVehiculoDocs());
+    setCurPersonaDocs(emptyPersonaDocs()); setCurSSTDocs(emptySSTDocs()); setCurVehiculoDocs(emptyVehiculoDocs());
     setAddKey((k) => k + 1);
   };
 
@@ -343,7 +424,7 @@ export default function RegistroPersonalForm({ proveedores, rol, proveedorIdFijo
         const persona = personas.find((p) => p.nombres === n);
         if (!persona) continue;
         setProgress(`Subiendo documentos: ${i + 1}/${created.length} — ${n}`);
-        await uploadDocsPersona(id, persona.personaDocs, persona.vehiculoDocs, persona.conVehiculo);
+        await uploadDocsPersona(id, persona.personaDocs, persona.sstDocs, persona.vehiculoDocs, persona.conVehiculo);
       }
       setSuccess(true);
     } catch (err: unknown) {
@@ -545,7 +626,7 @@ export default function RegistroPersonalForm({ proveedores, rol, proveedorIdFijo
           setSuccess(false); setNombres(""); setCedula(""); setActividadARealizar(""); setCargo("");
           setMunicipioResidencia(""); setArlNombre(""); setEpsNombre(""); setAfpNombre("");
           setFechaEntrada(""); setFechaFin(""); setConVehiculo(false);
-          setVehiculoData(emptyVehiculoData()); setPersonaDocs(emptyPersonaDocs()); setVehiculoDocs(emptyVehiculoDocs());
+          setVehiculoData(emptyVehiculoData()); setPersonaDocs(emptyPersonaDocs()); setSstDocs(emptySSTDocs()); setVehiculoDocs(emptyVehiculoDocs());
           setGrupoNombre(""); setGrupoFechaEntrada(""); setGrupoFechaFin(""); setPersonas([]);
           setCurNombres(""); setCurCedula(""); setCurActividad(""); setCurCargo(""); setCurMunicipio("");
           setCurArlNombre(""); setCurEpsNombre(""); setCurAfpNombre("");
@@ -651,6 +732,14 @@ export default function RegistroPersonalForm({ proveedores, rol, proveedorIdFijo
               />
             ))}
           </section>
+
+          {/* Documentos SST */}
+          <SSTDocSection
+            docs={sstDocs}
+            prefix="ind"
+            onFile={(tipo, f) => setSstDocs((prev) => ({ ...prev, [tipo]: { ...prev[tipo], file: f } }))}
+            onError={setError}
+          />
 
           {/* Vehículo */}
           <VehiculoFields
@@ -785,6 +874,13 @@ export default function RegistroPersonalForm({ proveedores, rol, proveedorIdFijo
                 />
               ))}
             </div>
+
+            <SSTDocSection
+              docs={curSSTDocs}
+              prefix={`cur-${addKey}`}
+              onFile={(tipo, f) => setCurSSTDocs((prev) => ({ ...prev, [tipo]: { ...prev[tipo], file: f } }))}
+              onError={setError}
+            />
 
             {/* Vehículo dentro de persona grupal */}
             <div>

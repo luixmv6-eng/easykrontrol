@@ -7,6 +7,11 @@ const TIPO_LABELS: Record<TipoDocumento, string> = {
   arl: "ARL",
   soat: "SOAT",
   tecnicomecanica: "Tecnomecánica",
+  planilla_aportes: "Planilla Aportes",
+  examenes_medicos: "Exámenes Médicos",
+  certificados_especialidad: "Cert. Especialidad",
+  arl_sgsst: "ARL SG-SST",
+  responsable_sgsst: "Resp. SG-SST",
 };
 
 const ESTADO_LABELS: Record<string, string> = {

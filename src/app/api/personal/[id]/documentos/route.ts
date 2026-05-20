@@ -13,7 +13,11 @@ export async function POST(
   const body = await request.json();
   const { tipo, url, nombre_archivo, fecha_inicio_vigencia } = body;
 
-  const tiposValidos = ["cedula", "licencia", "arl", "soat", "tecnicomecanica"];
+  const tiposValidos = [
+    "cedula", "licencia", "arl", "soat", "tecnicomecanica",
+    "planilla_aportes", "examenes_medicos", "certificados_especialidad",
+    "arl_sgsst", "responsable_sgsst",
+  ];
   if (!tipo || !tiposValidos.includes(tipo)) {
     return NextResponse.json({ error: "Tipo de documento no válido" }, { status: 400 });
   }
