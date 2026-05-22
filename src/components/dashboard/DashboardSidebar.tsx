@@ -22,7 +22,6 @@ const proveedorLinks = [
   { href: "/dashboard",                   label: "Panel de control",   icon: LayoutDashboard },
   { href: "/dashboard/personal/registro", label: "Registrar personal", icon: Users },
   { href: "/dashboard/personal/consulta", label: "Mi personal",        icon: ClipboardList },
-  { href: "/dashboard/reportes",          label: "Reportes",           icon: TableProperties },
   { href: "/dashboard/calendario",        label: "Calendario",         icon: Calendar },
   { href: "/dashboard/seguridad",         label: "Seguridad",          icon: Shield },
 ];

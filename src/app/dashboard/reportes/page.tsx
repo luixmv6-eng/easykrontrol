@@ -16,6 +16,7 @@ export default async function ReportesPage() {
     .single();
 
   if (!profile) redirect("/login");
+  if (profile.rol !== "admin") redirect("/dashboard");
 
   return <ReportesClient rol={profile.rol} />;
 }

@@ -96,9 +96,10 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
   // Mantener ref sincronizada con lista para usarla en useEffect sin deps
   useEffect(() => { listaRef.current = lista; }, [lista]);
 
-  // Auto-verificación al expandir una persona
+  // Auto-verificación al expandir una persona (solo admin)
   useEffect(() => {
     if (!expandido) return;
+    if (rol !== "admin") return;
     if (procesadosRef.current.has(expandido)) return;
     procesadosRef.current.add(expandido);
 
@@ -608,14 +609,14 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
                     </div>
                   )}
 
-                  {/* Banner verificación automática */}
-                  {verificandoPorId.has(p.id) && (
+                  {/* Banner verificación automática (solo admin) */}
+                  {rol === "admin" && verificandoPorId.has(p.id) && (
                     <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
                       <Loader2 size={14} className="text-blue-500 animate-spin shrink-0" />
                       <p className="text-[12px] text-blue-600">Verificando documentos automáticamente...</p>
                     </div>
                   )}
-                  {!verificandoPorId.has(p.id) && verificacionBanners[p.id] && (
+                  {rol === "admin" && !verificandoPorId.has(p.id) && verificacionBanners[p.id] && (
                     <BannerVerificacion banner={verificacionBanners[p.id]} tipoLabels={TIPO_LABELS} />
                   )}
 
