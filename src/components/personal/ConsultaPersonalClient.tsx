@@ -621,13 +621,13 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
                   )}
 
                   {/* Docs persona */}
-                  <DocSection title="Documentos del personal" tipos={tiposRequeridos} docs={p.documentos ?? []} onVer={verDoc} />
+                  <DocSection title="Documentos del personal" tipos={tiposRequeridos} docs={p.documentos ?? []} onVer={verDoc} esAdmin={rol === "admin"} />
                   {/* Docs SST (solo si se cargaron) */}
                   {tiposSST.length > 0 && (
-                    <DocSection title="Documentos SST" tipos={tiposSST} docs={p.documentos ?? []} onVer={verDoc} />
+                    <DocSection title="Documentos SST" tipos={tiposSST} docs={p.documentos ?? []} onVer={verDoc} esAdmin={rol === "admin"} />
                   )}
                   {/* Docs vehículo */}
-                  {p.vehiculo_id && <DocSection title={`Documentos del vehículo (${p.vehiculo?.placa ?? ""})`} tipos={tiposVehiculo} docs={p.documentos ?? []} onVer={verDoc} />}
+                  {p.vehiculo_id && <DocSection title={`Documentos del vehículo (${p.vehiculo?.placa ?? ""})`} tipos={tiposVehiculo} docs={p.documentos ?? []} onVer={verDoc} esAdmin={rol === "admin"} />}
 
                   {/* Checklist F-P-ECC-001-05 — solo admin */}
                   {rol === "admin" && (
@@ -981,11 +981,12 @@ function BannerVerificacion({ banner, tipoLabels }: { banner: VerifBanner; tipoL
 }
 
 // ─── DocSection helper ────────────────────────────────
-function DocSection({ title, tipos, docs, onVer }: {
+function DocSection({ title, tipos, docs, onVer, esAdmin = false }: {
   title: string;
   tipos: TipoDocumento[];
   docs: { tipo: TipoDocumento; url: string; nombre_archivo: string | null; fecha_vencimiento: string | null; verificado_auto?: boolean; verificacion_confianza?: string | null; verificacion_observacion?: string | null }[];
   onVer: (url: string) => void;
+  esAdmin?: boolean;
 }) {
   const diasHastaVencer = (fecha: string | null) => fecha ? Math.ceil((new Date(fecha).getTime() - Date.now()) / 86400000) : null;
 
@@ -1007,12 +1008,12 @@ function DocSection({ title, tipos, docs, onVer }: {
                 <div className="min-w-0">
                   <p className={clsx("text-[13px] font-semibold", doc ? (vencido ? "text-red-700" : alerta ? "text-amber-700" : "text-green-700") : "text-red-500")}>{TIPO_LABELS[tipo]}</p>
                   {doc?.nombre_archivo && <p className="text-[10px] text-gray-400 truncate">{doc.nombre_archivo}</p>}
-                  {doc?.verificado_auto && (
+                  {esAdmin && doc?.verificado_auto && (
                     <span className="inline-flex items-center gap-1 text-[10px] text-green-600 bg-green-100 px-1.5 py-0.5 rounded mt-0.5">
                       ✓ Verificado · {doc.verificacion_confianza ?? ""}
                     </span>
                   )}
-                  {doc && !doc.verificado_auto && doc.verificacion_observacion && (
+                  {esAdmin && doc && !doc.verificado_auto && doc.verificacion_observacion && (
                     <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded mt-0.5">
                       ⚠ {doc.verificacion_observacion}
                     </span>
