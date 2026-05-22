@@ -297,6 +297,7 @@ export interface VerificacionResultado {
   nombre_detectado: string | null;
   observacion: string;
   confianza: "alta" | "media" | "baja";
+  fuera_de_rango: boolean;
 }
 
 export interface DocumentoPersonal {

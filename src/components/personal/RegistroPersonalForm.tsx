@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   Upload, CheckCircle, AlertCircle, Loader2, FileText,
-  Building2, Car, User, Users, Plus, Trash2, ChevronDown, ChevronUp, Info,
+  Building2, Car, User, Users, Plus, Trash2, ChevronDown, ChevronUp, Info, AlertTriangle,
 } from "lucide-react";
 import clsx from "clsx";
 import type { Proveedor, TipoDocumento } from "@/types";
@@ -115,6 +115,9 @@ function DocItem({
   inputRef: (el: HTMLInputElement | null) => void;
   onError: (msg: string) => void;
 }) {
+  const [alerta, setAlerta] = useState<string | null>(null);
+  const [checkandoFecha, setCheckandoFecha] = useState(false);
+
   return (
     <div className="border border-gray-100 rounded-lg p-3 space-y-2">
       <div className="flex items-center justify-between">
@@ -122,27 +125,58 @@ function DocItem({
           <FileText size={13} className="text-gray-400" />
           <span className="text-[13px] font-medium text-gray-700">{label}</span>
         </div>
-        {entry.file && <span className="text-[11px] text-green-600 font-medium flex items-center gap-1"><CheckCircle size={11} /> Listo</span>}
+        {entry.file && !alerta && <span className="text-[11px] text-green-600 font-medium flex items-center gap-1"><CheckCircle size={11} /> Listo</span>}
       </div>
       <div
         onClick={() => { const el = document.getElementById(`input-${tipo}`) as HTMLInputElement; el?.click(); }}
         className={clsx(
           "border-2 border-dashed rounded-lg p-3 flex items-center gap-2 cursor-pointer transition-colors",
-          entry.file ? "border-green-200 bg-green-50" : "border-gray-200 hover:border-ek-300 hover:bg-ek-50"
+          alerta ? "border-amber-300 bg-amber-50"
+          : entry.file ? "border-green-200 bg-green-50"
+          : "border-gray-200 hover:border-ek-300 hover:bg-ek-50"
         )}
       >
-        <Upload size={14} className={entry.file ? "text-green-500" : "text-gray-400"} />
-        <span className={clsx("text-[12px]", entry.file ? "text-green-600" : "text-gray-400")}>
+        <Upload size={14} className={alerta ? "text-amber-500" : entry.file ? "text-green-500" : "text-gray-400"} />
+        <span className={clsx("text-[12px]", alerta ? "text-amber-600" : entry.file ? "text-green-600" : "text-gray-400")}>
           {entry.file ? entry.file.name : "Clic para seleccionar PDF"}
         </span>
       </div>
       <input id={`input-${tipo}`} ref={inputRef} type="file" accept="application/pdf" className="hidden"
         onChange={async (e) => {
           const f = e.target.files?.[0] ?? null;
-          if (f) { const err = await validarPDF(f); if (err) { onError(err); e.target.value = ""; return; } }
+          setAlerta(null);
+          if (f) {
+            const err = await validarPDF(f);
+            if (err) { onError(err); e.target.value = ""; return; }
+            // Chequeo de rango de fecha (no bloquea el upload)
+            setCheckandoFecha(true);
+            const fd = new FormData();
+            fd.append("file", f);
+            fd.append("tipo", tipo);
+            fetch("/api/documentos/check-fecha", { method: "POST", body: fd })
+              .then(r => r.ok ? r.json() : null)
+              .then(data => {
+                if (data?.fuera_de_rango) {
+                  setAlerta(`"${label}" está o puede estar fuera del rango de lo permitido. Verifícalo o genera un nuevo documento.`);
+                }
+              })
+              .catch(() => {})
+              .finally(() => setCheckandoFecha(false));
+          }
           onFile(f);
         }}
       />
+      {checkandoFecha && (
+        <div className="flex items-center gap-1.5 text-[11px] text-blue-500">
+          <Loader2 size={11} className="animate-spin" /> Verificando fecha del documento...
+        </div>
+      )}
+      {alerta && !checkandoFecha && (
+        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <AlertTriangle size={13} className="text-amber-500 shrink-0 mt-0.5" />
+          <p className="text-[12px] text-amber-700">{alerta}</p>
+        </div>
+      )}
       {tieneVigencia && (
         <div>
           <label className="block text-[11px] font-medium text-gray-500 mb-1">Fecha inicio vigencia *</label>

@@ -222,6 +222,15 @@ const PATRONES_WRONG: Partial<Record<TipoDocumento, RegExp[]>> = {
   ],
 };
 
+// ─── Máximos días desde la emisión por tipo de documento ─────────────────────
+// null = solo se verifica la fecha de vencimiento (no la de emisión)
+const RANGO_MAX_DIAS_EMISION: Partial<Record<TipoDocumento, number>> = {
+  arl:              30,   // certificado mensual de afiliación
+  planilla_aportes: 45,   // PILA del mes anterior (con gracia)
+  examenes_medicos: 365,  // validez anual
+  arl_sgsst:        365,  // calificación anual
+};
+
 // ─── Meses en español ─────────────────────────────────────────────────────────
 const MESES_ES: Record<string, number> = {
   enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,
@@ -285,6 +294,7 @@ function _verificarPDF(
         ? `PDF escaneado (sin texto). El nombre del archivo sugiere ${label}. Revisión manual obligatoria.`
         : `PDF escaneado (sin texto extraíble). Tipo esperado: ${label}. Revisión manual obligatoria.`,
       confianza: "media",
+      fuera_de_rango: false,
     };
   }
 
@@ -378,6 +388,7 @@ function _verificarImagen(
       ? `Imagen ${fmt} — el nombre del archivo sugiere ${label}. Verificación manual recomendada.`
       : `Imagen ${fmt} — tipo esperado: ${label}. Verificación manual recomendada.`,
     confianza: "media",
+    fuera_de_rango: false,
   };
 }
 
@@ -403,7 +414,21 @@ function _analizarTexto(
   const scoreTotal = Math.max(0, scoreContenido + scoreNombre - penalizacion);
 
   const [fechaVenc, estaVigente] = _extraerFechaVencimiento(texto);
+  const fechaEmision = _extraerFechaEmision(texto);
   const nombre = _extraerNombre(texto);
+
+  // Calcular si el documento está fuera del rango permitido
+  let fueraDeRango = false;
+  if (estaVigente === false) {
+    fueraDeRango = true;
+  } else {
+    const maxDias = RANGO_MAX_DIAS_EMISION[tipo];
+    if (fechaEmision && maxDias !== undefined) {
+      const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+      const diasDesdeEmision = Math.floor((hoy.getTime() - new Date(fechaEmision).getTime()) / 86400000);
+      if (diasDesdeEmision > maxDias) fueraDeRango = true;
+    }
+  }
 
   // Determinar si es correcto el tipo
   const esCorr = scoreTotal >= SCORE_MIN_CORRECTO;
@@ -424,8 +449,8 @@ function _analizarTexto(
     obs = `No se encontraron palabras clave de ${label}${wrongHits > 0 ? " y se detectaron indicadores de otro tipo de documento" : ""} — verifica manualmente`;
   }
 
-  if (estaVigente === false) {
-    obs += " · DOCUMENTO VENCIDO";
+  if (fueraDeRango) {
+    obs += estaVigente === false ? " · DOCUMENTO VENCIDO" : " · FUERA DEL RANGO PERMITIDO";
     confianza = "baja";
   }
 
@@ -436,6 +461,7 @@ function _analizarTexto(
     nombre_detectado:            nombre,
     observacion:                 obs.slice(0, 250),
     confianza,
+    fuera_de_rango:              fueraDeRango,
   };
 }
 
@@ -486,6 +512,32 @@ function _extraerFechaVencimiento(texto: string): [string | null, boolean | null
   return [null, null];
 }
 
+function _extraerFechaEmision(texto: string): string | null {
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+
+  const PATRONES: [RegExp, "dmy" | "ym"][] = [
+    [/(?:fecha\s+(?:de\s+)?expedici[oó]n|fecha\s+(?:de\s+)?emisi[oó]n|expedido\s+el?|emitido\s+el?|elaborado\s+el?|fecha\s+(?:de\s+)?elaboraci[oó]n)\s*[:\-]?\s*(\d{1,2})[/\-.](\d{1,2})[/\-.](20\d{2})\b/i, "dmy"],
+    [/\bperiodo\s*[:\-]?\s*(0?[1-9]|1[0-2])[/\-](20\d{2})\b/i, "ym"],
+    [/\bmes\s*(?:de\s+cotizaci[oó]n|de\s+liquidaci[oó]n)?\s*[:\-]?\s*(0?[1-9]|1[0-2])[/\-](20\d{2})\b/i, "ym"],
+  ];
+
+  for (const [patron, fmt] of PATRONES) {
+    const m = patron.exec(texto);
+    if (!m) continue;
+    try {
+      let d: number, mo: number, y: number;
+      if (fmt === "dmy") { d = +m[1]; mo = +m[2]; y = +m[3]; }
+      else               { mo = +m[1]; y = +m[2]; d = 1; }
+      if (mo < 1 || mo > 12 || d < 1 || d > 31 || y < 2000 || y > 2060) continue;
+      const fecha = new Date(y, mo - 1, d);
+      if (isNaN(fecha.getTime()) || fecha > hoy) continue;
+      return fecha.toISOString().split("T")[0];
+    } catch { continue; }
+  }
+  return null;
+}
+
 function _extraerNombre(texto: string): string | null {
   const patrones = [
     /(?:nombres?\s+y\s+apellidos?|titular|nombre\s+completo)\s*[:\-]?\s*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{8,55}?)(?=\n|\r|$|\s{2,})/im,
@@ -511,5 +563,6 @@ function _error(observacion: string): VerificacionResultado {
     nombre_detectado:            null,
     observacion:                 observacion.slice(0, 250),
     confianza:                   "baja",
+    fuera_de_rango:              false,
   };
 }
