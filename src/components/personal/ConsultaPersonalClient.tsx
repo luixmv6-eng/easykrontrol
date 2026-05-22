@@ -33,6 +33,11 @@ const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
   inactivo:   { label: "Inactivo",   cls: "bg-gray-100 text-gray-500" },
 };
 
+const GRUPO_BADGE: Record<string, { label: string; cls: string }> = {
+  riopaila: { label: "Riopaila", cls: "bg-red-100 text-red-700 border-red-200" },
+  castilla:  { label: "Castilla",  cls: "bg-green-100 text-green-700 border-green-200" },
+};
+
 function diasHastaVencer(fecha: string | null): number | null {
   if (!fecha) return null;
   return Math.ceil((new Date(fecha).getTime() - Date.now()) / 86400000);
@@ -500,8 +505,16 @@ export function ConsultaPersonalClient({ personal, proveedores, rol, proveedorId
               )}
               <div className="flex-1 cursor-pointer" onClick={() => setExpandido(isOpen ? null : p.id)}>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-[14px] font-semibold text-gray-800">{p.nombres}</p>
+                    {rol === "admin" && p.proveedor && (p.proveedor as any).empresa_grupo && (() => {
+                      const g = GRUPO_BADGE[(p.proveedor as any).empresa_grupo];
+                      return g ? (
+                        <span className={clsx("text-[10px] font-semibold px-2 py-0.5 rounded-full border", g.cls)}>
+                          {g.label}
+                        </span>
+                      ) : null;
+                    })()}
                     {p.en_correccion && (
                       <span className="flex items-center gap-1 text-[11px] text-orange-600 bg-orange-50 border border-orange-100 px-2 py-0.5 rounded-full">
                         <Wrench size={10} /> En corrección

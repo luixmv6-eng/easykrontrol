@@ -10,6 +10,7 @@ interface Usuario {
   full_name: string | null;
   rol: string;
   proveedor_id: string | null;
+  empresa_grupo: string | null;
   mfa_enabled: boolean;
   created_at: string;
   proveedor: { nombre: string } | null;
@@ -72,6 +73,7 @@ export function UsuariosClient({ usuarios, proveedores, currentUserId }: Props) 
           full_name: fd.get("full_name"),
           rol: fd.get("rol"),
           proveedor_id: fd.get("proveedor_id") || null,
+          empresa_grupo: fd.get("empresa_grupo") || null,
         }),
       });
       const data = await res.json();
@@ -97,6 +99,7 @@ export function UsuariosClient({ usuarios, proveedores, currentUserId }: Props) 
           full_name: fd.get("full_name"),
           rol: fd.get("rol"),
           proveedor_id: fd.get("proveedor_id") || null,
+          empresa_grupo: fd.get("empresa_grupo") || null,
         }),
       });
       const data = await res.json();
@@ -176,6 +179,16 @@ export function UsuariosClient({ usuarios, proveedores, currentUserId }: Props) 
                     )}
                   </div>
                   <p className="text-[12px] text-gray-400 truncate">{u.username}</p>
+                  {u.empresa_grupo && (
+                    <span className={clsx(
+                      "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                      u.empresa_grupo === "castilla"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-700"
+                    )}>
+                      {u.empresa_grupo === "castilla" ? "Castilla" : "Riopaila"}
+                    </span>
+                  )}
                   {u.proveedor && (
                     <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
                       <Building2 size={10} /> {u.proveedor.nombre}
@@ -238,9 +251,20 @@ export function UsuariosClient({ usuarios, proveedores, currentUserId }: Props) 
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Empresa vinculada</label>
+                    <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">
+                      Pertenece a
+                      <span className="font-normal text-gray-400 ml-1">(deja vacío si es admin global)</span>
+                    </label>
+                    <select name="empresa_grupo" className={selectCls}>
+                      <option value="">— Admin global (ve ambas empresas) —</option>
+                      <option value="castilla">🌿 Castilla</option>
+                      <option value="riopaila">🔴 Riopaila</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Empresa contratista vinculada</label>
                     <select name="proveedor_id" className={selectCls}>
-                      <option value="">Sin empresa (admin)</option>
+                      <option value="">Sin empresa contratista</option>
                       {proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                     </select>
                   </div>
@@ -260,9 +284,19 @@ export function UsuariosClient({ usuarios, proveedores, currentUserId }: Props) 
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Empresa vinculada</label>
+                    <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">
+                      Pertenece a
+                    </label>
+                    <select name="empresa_grupo" defaultValue={modal.user.empresa_grupo ?? ""} className={selectCls}>
+                      <option value="">— Admin global (ve ambas empresas) —</option>
+                      <option value="castilla">🌿 Castilla</option>
+                      <option value="riopaila">🔴 Riopaila</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Empresa contratista vinculada</label>
                     <select name="proveedor_id" defaultValue={modal.user.proveedor_id ?? ""} className={selectCls}>
-                      <option value="">Sin empresa (admin)</option>
+                      <option value="">Sin empresa contratista</option>
                       {proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                     </select>
                   </div>

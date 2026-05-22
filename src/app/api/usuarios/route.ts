@@ -22,7 +22,7 @@ export async function GET(request: Request) {
 
   let query = admin
     .from("profiles")
-    .select("id, username, full_name, rol, proveedor_id, mfa_enabled, created_at, proveedor:proveedores(nombre)")
+    .select("id, username, full_name, rol, proveedor_id, empresa_grupo, mfa_enabled, created_at, proveedor:proveedores(nombre)")
     .order("created_at", { ascending: false });
 
   if (proveedor_id) query = query.eq("proveedor_id", proveedor_id);
@@ -37,8 +37,9 @@ export async function POST(request: Request) {
   if (error || !session) return NextResponse.json({ error }, { status });
 
   const body = await request.json();
-  const { email, password, rol, proveedor_id, full_name } = body as {
-    email: string; password: string; rol: string; proveedor_id?: string; full_name?: string;
+  const { email, password, rol, proveedor_id, full_name, empresa_grupo } = body as {
+    email: string; password: string; rol: string;
+    proveedor_id?: string; full_name?: string; empresa_grupo?: string;
   };
 
   if (!email?.trim() || !password?.trim() || !rol) {
@@ -46,6 +47,9 @@ export async function POST(request: Request) {
   }
   if (password.length < 8) {
     return NextResponse.json({ error: "La contraseña debe tener al menos 8 caracteres" }, { status: 400 });
+  }
+  if (empresa_grupo && !["riopaila", "castilla"].includes(empresa_grupo)) {
+    return NextResponse.json({ error: "empresa_grupo inválido" }, { status: 400 });
   }
 
   const admin = createAdminClient();
@@ -69,6 +73,7 @@ export async function POST(request: Request) {
     proveedor_id: proveedor_id ?? null,
     full_name: full_name?.trim() ?? null,
     username: email.trim().toLowerCase(),
+    empresa_grupo: empresa_grupo ?? null,
   }).eq("id", authUser.user.id);
 
   await logAudit({

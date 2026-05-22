@@ -1,11 +1,6 @@
 import type { Config } from "tailwindcss";
 
-// ─────────────────────────────────────────────
-// Configuración de Tailwind CSS
-// Extiende los colores base con la paleta de Easy Kontrol
-// ─────────────────────────────────────────────
 const config: Config = {
-  // Archivos donde Tailwind buscará clases para incluir en el bundle
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -13,28 +8,27 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      // ── Paleta de colores corporativa Easy Kontrol ──
+      // ── Colores via CSS variables → soportan multi-tenant ──
+      // Castilla = verde (default)  |  Riopaila = rojo
       colors: {
         ek: {
-          50:  "#f0f7e8",
-          100: "#d8edbe",
-          200: "#bee294",
-          300: "#a5d468",  // verde claro
-          400: "#8cc844",
-          500: "#7ab648",  // verde primario (botones, logo)
-          600: "#5a9030",  // verde oscuro (hover)
-          700: "#3f6b22",
-          800: "#274614",
-          900: "#132308",
+          50:  "rgb(var(--ek-50)  / <alpha-value>)",
+          100: "rgb(var(--ek-100) / <alpha-value>)",
+          200: "rgb(var(--ek-200) / <alpha-value>)",
+          300: "rgb(var(--ek-300) / <alpha-value>)",
+          400: "rgb(var(--ek-400) / <alpha-value>)",
+          500: "rgb(var(--ek-500) / <alpha-value>)",
+          600: "rgb(var(--ek-600) / <alpha-value>)",
+          700: "rgb(var(--ek-700) / <alpha-value>)",
+          800: "rgb(var(--ek-800) / <alpha-value>)",
+          900: "rgb(var(--ek-900) / <alpha-value>)",
         },
       },
 
-      // ── Fuentes ──
       fontFamily: {
         sans: ["Nunito", "ui-sans-serif", "system-ui"],
       },
 
-      // ── Animaciones personalizadas ──
       keyframes: {
         slideInRight: {
           from: { opacity: "0", transform: "translateX(20px)" },

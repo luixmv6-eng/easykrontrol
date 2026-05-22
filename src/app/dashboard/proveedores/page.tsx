@@ -9,16 +9,20 @@ export default async function ProveedoresPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("rol")
+    .select("rol, empresa_grupo")
     .eq("id", session.user.id)
     .single();
 
   if (profile?.rol !== "admin") redirect("/dashboard");
 
-  const { data: proveedores } = await supabase
-    .from("proveedores")
-    .select("*")
-    .order("nombre");
+  const empresaGrupo = profile?.empresa_grupo ?? null;
+
+  let proveedoresQuery = supabase.from("proveedores").select("*").order("nombre");
+  if (empresaGrupo) {
+    proveedoresQuery = proveedoresQuery.eq("empresa_grupo", empresaGrupo);
+  }
+
+  const { data: proveedores } = await proveedoresQuery;
 
   return <ProveedoresClient proveedores={proveedores ?? []} />;
 }

@@ -10,16 +10,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("rol")
+    .select("rol, empresa_grupo")
     .eq("id", session.user.id)
     .single();
 
   const rol = profile?.rol ?? "proveedor";
+  const empresaGrupo = profile?.empresa_grupo ?? null;
 
   return (
     <>
       <SessionTimeout />
-      <DashboardShell email={session.user.email ?? session.user.user_metadata?.email ?? "Usuario"} rol={rol}>
+      <DashboardShell
+        email={session.user.email ?? session.user.user_metadata?.email ?? "Usuario"}
+        rol={rol}
+        empresaGrupo={empresaGrupo}
+      >
         {children}
       </DashboardShell>
     </>

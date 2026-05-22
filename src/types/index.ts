@@ -37,6 +37,7 @@ export interface MfaSetupData {
 
 // ── Dominio ───────────────────────────────────────────
 export type Rol = "admin" | "proveedor";
+export type EmpresaGrupo = "riopaila" | "castilla";
 export type EstadoPersonal = "pendiente" | "aprobado" | "rechazado" | "inactivo";
 export type TipoDocumento =
   | "cedula" | "licencia" | "arl" | "soat" | "tecnicomecanica"
@@ -269,6 +270,7 @@ export interface Profile {
   mfa_enabled: boolean;
   rol: Rol;
   proveedor_id: string | null;
+  empresa_grupo: EmpresaGrupo | null;
   created_at: string;
   updated_at: string;
 }
@@ -282,6 +284,7 @@ export interface Proveedor {
   direccion: string | null;
   representante: string | null;
   estado: EstadoProveedor;
+  empresa_grupo: EmpresaGrupo;
   created_by: string;
   created_at: string;
   updated_at: string;

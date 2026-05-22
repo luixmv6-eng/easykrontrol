@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 export async function PATCH(
@@ -65,6 +66,15 @@ export async function DELETE(
   if (profile?.rol !== "admin") {
     return NextResponse.json({ error: "Solo administradores pueden eliminar empresas" }, { status: 403 });
   }
+
+  // Desvincular usuarios antes de eliminar (evita violación de FK profiles_proveedor_id_fkey)
+  const admin = createAdminClient();
+  const { error: unlinkErr } = await admin
+    .from("profiles")
+    .update({ proveedor_id: null })
+    .eq("proveedor_id", params.id);
+
+  if (unlinkErr) return NextResponse.json({ error: unlinkErr.message }, { status: 500 });
 
   const { error } = await supabase
     .from("proveedores")

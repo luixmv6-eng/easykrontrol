@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { EvaluacionesClient } from "@/components/evaluaciones/EvaluacionesClient";
+import { getProveedorIdsByEmpresa } from "@/lib/empresa";
 
 export default async function EvaluacionesPage() {
   const supabase = await createClient();
@@ -9,28 +10,40 @@ export default async function EvaluacionesPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("rol")
+    .select("rol, empresa_grupo")
     .eq("id", session.user.id)
     .single();
 
   const rol = profile?.rol ?? "proveedor";
+  const esAdmin = rol === "admin";
+  const empresaGrupo = profile?.empresa_grupo ?? null;
 
-  const { data: evaluaciones } = await supabase
+  let provIds: string[] | null = null;
+  if (esAdmin && empresaGrupo) {
+    provIds = await getProveedorIdsByEmpresa(supabase, empresaGrupo);
+  }
+
+  let evaluacionesQuery = supabase
     .from("evaluaciones")
     .select(`*, proveedor:proveedores(id,nombre,nit), detalles:detalle_evaluacion(*, criterio:criterios_evaluacion(*))`)
     .order("created_at", { ascending: false });
 
-  const { data: proveedores } = await supabase
+  let proveedoresQuery = supabase
     .from("proveedores")
     .select("id,nombre,nit,email,telefono,estado")
     .eq("estado", "activo")
     .order("nombre");
 
-  const { data: criterios } = await supabase
-    .from("criterios_evaluacion")
-    .select("*")
-    .eq("activo", true)
-    .order("nombre");
+  if (provIds !== null) {
+    evaluacionesQuery = evaluacionesQuery.in("proveedor_id", provIds);
+    proveedoresQuery = proveedoresQuery.in("id", provIds);
+  }
+
+  const [{ data: evaluaciones }, { data: proveedores }, { data: criterios }] = await Promise.all([
+    evaluacionesQuery,
+    proveedoresQuery,
+    supabase.from("criterios_evaluacion").select("*").eq("activo", true).order("nombre"),
+  ]);
 
   return (
     <EvaluacionesClient

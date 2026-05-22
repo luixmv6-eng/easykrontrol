@@ -26,7 +26,7 @@ export async function POST(
   // Obtener todos los documentos de la persona
   const { data: documentos, error: docsErr } = await admin
     .from("documentos_personal")
-    .select("id, tipo, url")
+    .select("id, tipo, url, nombre_archivo")
     .eq("personal_id", params.id);
 
   if (docsErr) return NextResponse.json({ error: docsErr.message }, { status: 500 });
@@ -61,7 +61,7 @@ export async function POST(
       }
 
       const buffer = await fileData.arrayBuffer();
-      const resultado = await verificarDocumento(buffer, doc.url, doc.tipo as TipoDocumento);
+      const resultado = await verificarDocumento(buffer, doc.url, doc.tipo as TipoDocumento, doc.nombre_archivo);
 
       const verificadoOk =
         resultado.es_correcto_tipo &&

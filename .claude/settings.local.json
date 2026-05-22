@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(ls -la src/)",
+      "Bash(Get-ChildItem src *)",
+      "Bash(ls -la src/app/)",
+      "Bash(Get-ChildItem src\\\\app)",
+      "Bash(ls -la src/app/api/)",
+      "Bash(Get-ChildItem src\\\\app\\\\api)"
     ]
   }
 }

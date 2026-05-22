@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email";
 import { logAudit } from "@/lib/audit";
 import { crearNotificacion } from "@/lib/notifications";
+import { sincronizarAprobadoEnOneDrive } from "@/lib/onedrive";
 import { NextResponse } from "next/server";
 
 function htmlAprobacion(nombres: string, cedula: string, provNombre: string) {
@@ -169,6 +170,16 @@ export async function PATCH(
         estado: enviado ? "enviado" : "error",
       });
     }
+  }
+
+  // Sincronizar documentos en OneDrive (fire-and-forget, no bloquea la respuesta)
+  if (estado === "aprobado") {
+    sincronizarAprobadoEnOneDrive(
+      params.id,
+      updated.nombres,
+      updated.cedula,
+      updated.proveedor?.nombre ?? "Sin empresa"
+    ).catch((e) => console.error("[OneDrive] Error en sincronización:", e));
   }
 
   return NextResponse.json({ data: updated });

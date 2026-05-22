@@ -2,7 +2,7 @@
  * Verificación de documentos colombianos — corre en Vercel (Node.js).
  * Usa solo built-ins de Node.js (zlib). Sin npm packages externos.
  * PDFs con texto digital → extracción de streams + regex keywords.
- * PDFs escaneados / imágenes → validación de formato y tamaño (confianza media).
+ * PDFs escaneados / imágenes → confianza media, requieren revisión manual.
  */
 
 import { inflateSync, inflateRawSync } from "zlib";
@@ -13,21 +13,28 @@ const MIN_BYTES = 1_000;
 const MAX_BYTES = 25_000_000;
 const MIN_TEXTO_CHARS = 20;
 
+// Umbral de score para considerar el documento correcto:
+// score >= SCORE_MIN_CORRECTO → es_correcto_tipo = true
+// score < SCORE_MIN_CORRECTO pero score > 0 → dudoso (media, sin auto-verificar)
+const SCORE_MIN_CORRECTO = 2;
+// Score mínimo para confianza "alta"
+const SCORE_ALTA = 4;
+
 // ─── Labels ───────────────────────────────────────────────────────────────────
 const TIPO_LABELS: Record<TipoDocumento, string> = {
-  cedula:                  "Cédula de Ciudadanía",
-  licencia:                "Licencia de Conducción",
-  arl:                     "Certificado ARL",
-  soat:                    "SOAT",
-  tecnicomecanica:         "Revisión Tecnomecánica",
-  planilla_aportes:        "Planilla de Aportes PILA",
-  examenes_medicos:        "Exámenes Médicos Ocupacionales",
+  cedula:                    "Cédula de Ciudadanía",
+  licencia:                  "Licencia de Conducción",
+  arl:                       "Certificado ARL",
+  soat:                      "SOAT",
+  tecnicomecanica:           "Revisión Tecnomecánica",
+  planilla_aportes:          "Planilla de Aportes PILA",
+  examenes_medicos:          "Exámenes Médicos Ocupacionales",
   certificados_especialidad: "Certificado de Especialidad",
-  arl_sgsst:               "ARL SG-SST",
-  responsable_sgsst:       "Responsable SG-SST",
+  arl_sgsst:                 "ARL SG-SST",
+  responsable_sgsst:         "Responsable SG-SST",
 };
 
-// ─── Patrones por tipo de documento ──────────────────────────────────────────
+// ─── Patrones por tipo de documento (contenido PDF) ──────────────────────────
 const PATRONES_TIPO: Record<TipoDocumento, RegExp[]> = {
   cedula: [
     /C[EÉ]DULA\s+DE\s+CIUDADAN[IÍ]A/i,
@@ -36,6 +43,11 @@ const PATRONES_TIPO: Record<TipoDocumento, RegExp[]> = {
     /\bNUIP\b/i,
     /TARJETA\s+DE\s+IDENTIDAD/i,
     /IDENTIFICACI[OÓ]N\s+PERSONAL/i,
+    /ESTADO\s+CIVIL\b/i,
+    /DOCUMENTO\s+DE\s+IDENTIDAD/i,
+    /\bC\.C\.\b/i,
+    /LUGAR\s+DE\s+EXPEDICI[OÓ]N/i,
+    /FECHA\s+DE\s+NACIMIENTO/i,
   ],
   licencia: [
     /LICENCIA\s+DE\s+CONDUCCI[OÓ]N/i,
@@ -44,14 +56,26 @@ const PATRONES_TIPO: Record<TipoDocumento, RegExp[]> = {
     /\bRUNT\b/i,
     /LICENCIA\s+(?:N[UÚ]M(?:ERO)?|#|NO\.?)/i,
     /CATEGOR[IÍ]A\s+[ABCDE]\d?\b/i,
+    /PERMISO\s+DE\s+CONDUCCI[OÓ]N/i,
+    /RESTRICCI[OÓ]N\s+(?:DE\s+)?CONDUCTOR/i,
+    /PUNTOS\s+(?:ACUMULADOS|VIGENTES)/i,
+    /AUTOMOTOR\b/i,
+    /FONDO\s+DE\s+PREVENCI[OÓ]N/i,
+    /LICENCIA.*(?:VENCE|VIGENCIA)/i,
   ],
   arl: [
     /ADMINISTRADORA\s+DE\s+RIESGOS\s+LABORALES/i,
     /\bARL\b/,
     /RIESGOS\s+LABORALES/i,
     /AFILIACI[OÓ]N\s+(?:A\s+LA\s+)?ARL/i,
-    /POSITIVA|SURA|COLMENA|LIBERTY|COLPATRIA|AXA|ACOMP/i,
+    /POSITIVA|SURA\s+ARL|COLMENA|LIBERTY\s+SEGUROS|COLPATRIA|AXA\s+COLPATRIA/i,
     /COBERTURA\s+(?:DE\s+)?RIESGOS/i,
+    /CERTIFICADO\s+DE\s+AFILIACI[OÓ]N/i,
+    /CLASE\s+DE\s+RIESGO/i,
+    /NIVEL\s+DE\s+RIESGO/i,
+    /ACTIVIDAD\s+ECON[OÓ]MICA/i,
+    /CENTRO\s+DE\s+TRABAJO/i,
+    /TASA\s+DE\s+COTIZACI[OÓ]N/i,
   ],
   soat: [
     /\bSOAT\b/,
@@ -59,6 +83,12 @@ const PATRONES_TIPO: Record<TipoDocumento, RegExp[]> = {
     /P[OÓ]LIZA\s+SOAT/i,
     /ACCIDENTES\s+DE\s+TR[AÁ]NSITO/i,
     /SEGURO\s+OBLIGATORIO\s+(?:DE\s+)?TR[AÁ]NSITO/i,
+    /FASECOLDA/i,
+    /P[OÓ]LIZA\s+N[UÚ]M(?:ERO)?/i,
+    /TOMADOR\s+(?:DEL?\s+)?SEGURO/i,
+    /PRIMA\s+(?:NETA|TOTAL)/i,
+    /PLACA\s+DEL?\s+VEH[IÍ]CULO/i,
+    /VIGENCIA\s+(?:DEL?\s+)?SEGURO/i,
   ],
   tecnicomecanica: [
     /REVISI[OÓ]N\s+T[EÉ]CNO/i,
@@ -66,6 +96,12 @@ const PATRONES_TIPO: Record<TipoDocumento, RegExp[]> = {
     /\bCDA\b/,
     /CERTIFICADO\s+DE\s+REVISI[OÓ]N\s+T[EÉ]CNICO/i,
     /CENTRO\s+DE\s+DIAGN[OÓ]STICO\s+AUTOMOTOR/i,
+    /EMISIONES\s+CONTAMINANTES/i,
+    /REVISI[OÓ]N\s+PERI[OÓ]DICA/i,
+    /SISTEMA\s+DE\s+FRENOS/i,
+    /INSPECCI[OÓ]N\s+T[EÉ]CNICA/i,
+    /VIGENCIA\s+(?:DE\s+LA\s+)?REVISI[OÓ]N/i,
+    /APTITUD\s+(?:DEL?\s+)?VEH[IÍ]CULO/i,
   ],
   planilla_aportes: [
     /\bPILA\b/,
@@ -74,6 +110,13 @@ const PATRONES_TIPO: Record<TipoDocumento, RegExp[]> = {
     /SEGURIDAD\s+SOCIAL\s+INTEGRAL/i,
     /OPERADOR\s+DE\s+INFORMACI[OÓ]N/i,
     /LIQUIDACI[OÓ]N\s+DE\s+APORTES/i,
+    /TIPO\s+DE\s+COTIZANTE/i,
+    /BASE\s+DE\s+COTIZACI[OÓ]N/i,
+    /INGRESO\s+BASE\s+DE\s+COTIZACI[OÓ]N/i,
+    /SALUD.*PENSI[OÓ]N.*RIESGOS/i,
+    /PAGO\s+DE\s+SEGURIDAD\s+SOCIAL/i,
+    /COLPENSIONES|COLFONDOS|PORVENIR|SKANDIA/i,
+    /PERIODO\s+(?:DE\s+)?COTIZACI[OÓ]N/i,
   ],
   examenes_medicos: [
     /EXAMEN\s+M[EÉ]DICO/i,
@@ -83,6 +126,13 @@ const PATRONES_TIPO: Record<TipoDocumento, RegExp[]> = {
     /\bAPTO\b/,
     /M[EÉ]DICO\s+OCUPACIONAL/i,
     /EVALUACI[OÓ]N\s+M[EÉ]DICA\s+OCUPACIONAL/i,
+    /APTO\s+PARA\s+(?:EL\s+)?TRABAJO/i,
+    /RESTRICCI[OÓ]N\s+M[EÉ]DICA/i,
+    /HISTORIA\s+CL[IÍ]NICA\s+OCUPACIONAL/i,
+    /CARGO\s+(?:AL\s+QUE\s+)?ASPIRA/i,
+    /APTITUD\s+F[IÍ]SICA/i,
+    /RIESGO\s+CARDIOVASCULAR/i,
+    /VISI[OÓ]N.*O[IÍ]DO/i,
   ],
   certificados_especialidad: [
     /CERTIFICADO\s+DE\s+(?:FORMACI[OÓ]N|CAPACITACI[OÓ]N|APTITUD|COMPETENCIA)/i,
@@ -90,6 +140,14 @@ const PATRONES_TIPO: Record<TipoDocumento, RegExp[]> = {
     /COMPETENCIA\s+LABORAL/i,
     /HORAS\s+DE\s+(?:FORMACI[OÓ]N|CAPACITACI[OÓ]N)/i,
     /PROGRAMA\s+DE\s+FORMACI[OÓ]N/i,
+    /TRABAJO\s+EN\s+ALTURAS/i,
+    /MANEJO\s+(?:DE\s+)?MATERIALES\s+PELIGROSOS/i,
+    /PRIMEROS\s+AUXILIOS/i,
+    /ESPACIOS\s+CONFINADOS/i,
+    /IZAJE\s+(?:DE\s+)?CARGAS/i,
+    /OPERACI[OÓ]N\s+(?:DE\s+)?(?:MONTACARGA|GRÚA|EXCAVADORA)/i,
+    /ANDAMIOS/i,
+    /CERTIFICADO.*(?:CURSO|ENTRENAMIENTO)/i,
   ],
   arl_sgsst: [
     /SG[\s-]?SST/i,
@@ -97,6 +155,11 @@ const PATRONES_TIPO: Record<TipoDocumento, RegExp[]> = {
     /SEGURIDAD\s+Y\s+SALUD\s+EN\s+EL\s+TRABAJO/i,
     /CALIFICACI[OÓ]N\s+DE\s+(?:EMPRESA|CONTRATISTA|RIESGOS)/i,
     /NIVEL\s+DE\s+CUMPLIMIENTO\s+SG/i,
+    /PORCENTAJE\s+DE\s+CUMPLIMIENTO/i,
+    /EST[AÁ]NDAR\s+M[IÍ]NIMO/i,
+    /RESOLUCI[OÓ]N\s+0312/i,
+    /INSPECCI[OÓ]N.*SST/i,
+    /PLAN\s+DE\s+(?:TRABAJO|MEJORAMIENTO)\s+SG/i,
   ],
   responsable_sgsst: [
     /RESPONSABLE\s+(?:DEL?\s+)?SG[\s-]?SST/i,
@@ -105,6 +168,57 @@ const PATRONES_TIPO: Record<TipoDocumento, RegExp[]> = {
     /SG[\s-]?SST/i,
     /COORDINADOR\s+(?:DE\s+)?(?:SST|SG)/i,
     /PROFESIONAL\s+EN\s+SST/i,
+    /50\s+HORAS|CURSO.*(?:SST|SGSST)/i,
+    /VIG[IÍ]A\s+(?:DE\s+)?SEGURIDAD/i,
+    /CERTIFICACI[OÓ]N.*RESPONSABLE/i,
+    /DIPLOMADO.*SST/i,
+    /ASESOR.*SGSST/i,
+  ],
+};
+
+// ─── Palabras clave en el nombre del archivo ──────────────────────────────────
+const FILENAME_PATRONES: Record<TipoDocumento, RegExp> = {
+  cedula:                    /ced[uú]la|c\.?c\.?(?!\d)|identidad|ciudadan[aí]/i,
+  licencia:                  /licen[cs]|conducci|runt|driver|pase\b/i,
+  arl:                       /\barl\b|afiliaci|riesgo.*labor/i,
+  soat:                      /\bsoat\b|seguro.*trans|poliza.*trans/i,
+  tecnicomecanica:           /tecno|tecnomec|revisi[oó]n.*veh|cda\b/i,
+  planilla_aportes:          /\bpila\b|planilla|aportes?|seg.*social/i,
+  examenes_medicos:          /examen|m[eé]dic|ocupacional|preocupacional/i,
+  certificados_especialidad: /certific|sena|formaci|capacitaci|especialidad|competencia/i,
+  arl_sgsst:                 /sgsst|sg.?sst|calificaci.*sst/i,
+  responsable_sgsst:         /responsable|vigía|coordinador.*sst|licencia.*salud/i,
+};
+
+// ─── Patrones que indican fuertemente que es OTRO documento (penalizan) ───────
+const PATRONES_WRONG: Partial<Record<TipoDocumento, RegExp[]>> = {
+  cedula: [
+    /\bSOAT\b/,
+    /LICENCIA\s+DE\s+CONDUCCI[OÓ]N/i,
+    /PLANILLA\s+INTEGRADA/i,
+    /TECNICOMEC[AÁ]NICA/i,
+  ],
+  licencia: [
+    /\bSOAT\b/,
+    /PLANILLA\s+INTEGRADA/i,
+    /TECNICOMEC[AÁ]NICA/i,
+  ],
+  soat: [
+    /C[EÉ]DULA\s+DE\s+CIUDADAN[IÍ]A/i,
+    /LICENCIA\s+DE\s+CONDUCCI[OÓ]N/i,
+    /TECNICOMEC[AÁ]NICA/i,
+    /PLANILLA\s+INTEGRADA/i,
+  ],
+  tecnicomecanica: [
+    /\bSOAT\b/,
+    /C[EÉ]DULA\s+DE\s+CIUDADAN[IÍ]A/i,
+    /PLANILLA\s+INTEGRADA/i,
+  ],
+  planilla_aportes: [
+    /\bSOAT\b/,
+    /C[EÉ]DULA\s+DE\s+CIUDADAN[IÍ]A/i,
+    /LICENCIA\s+DE\s+CONDUCCI[OÓ]N/i,
+    /TECNICOMEC[AÁ]NICA/i,
   ],
 };
 
@@ -120,7 +234,8 @@ const MESES_ES: Record<string, number> = {
 export async function verificarDocumento(
   fileBuffer: ArrayBuffer,
   url: string,
-  tipoEsperado: TipoDocumento
+  tipoEsperado: TipoDocumento,
+  nombreArchivo?: string | null
 ): Promise<VerificacionResultado> {
   const buf = Buffer.from(fileBuffer);
   const n = buf.length;
@@ -130,14 +245,27 @@ export async function verificarDocumento(
 
   const mime = _detectarMime(url, buf);
 
-  if (mime === "application/pdf") return _verificarPDF(buf, tipoEsperado);
-  if (mime.startsWith("image/"))  return _verificarImagen(mime, tipoEsperado);
+  if (mime === "application/pdf") return _verificarPDF(buf, tipoEsperado, url, nombreArchivo);
+  if (mime.startsWith("image/"))  return _verificarImagen(mime, tipoEsperado, url, nombreArchivo);
   return _error(`Formato no soportado (${mime}). Solo PDF e imágenes JPG/PNG/WebP`);
 }
 
+// ─── Analiza nombre de archivo ────────────────────────────────────────────────
+function _scoreNombre(url: string, nombreArchivo: string | null | undefined, tipo: TipoDocumento): number {
+  const candidatos = [
+    nombreArchivo ?? "",
+    url.split("?")[0].split("/").pop() ?? "",
+  ].map((s) => s.replace(/[_\-\.]/g, " ").toLowerCase());
+
+  const patron = FILENAME_PATRONES[tipo];
+  return candidatos.some((c) => patron.test(c)) ? 1 : 0;
+}
+
 // ─── Verificación PDF ─────────────────────────────────────────────────────────
-function _verificarPDF(buf: Buffer, tipo: TipoDocumento): VerificacionResultado {
-  // Validar cabecera %PDF
+function _verificarPDF(
+  buf: Buffer, tipo: TipoDocumento,
+  url: string, nombreArchivo?: string | null
+): VerificacionResultado {
   if (!buf.slice(0, 5).toString("ascii").startsWith("%PDF")) {
     return _error("El archivo no es un PDF válido");
   }
@@ -146,29 +274,28 @@ function _verificarPDF(buf: Buffer, tipo: TipoDocumento): VerificacionResultado 
   const label = TIPO_LABELS[tipo];
 
   if (texto.length < MIN_TEXTO_CHARS) {
-    // PDF escaneado o sin capa de texto legible
+    // PDF escaneado — no se puede verificar el tipo automáticamente
+    const scoreNombre = _scoreNombre(url, nombreArchivo, tipo);
     return {
-      es_correcto_tipo:            true,
+      es_correcto_tipo:            false,
       esta_vigente:                null,
       fecha_vencimiento_detectada: null,
       nombre_detectado:            null,
-      observacion: `PDF válido — sin texto extraíble (posiblemente escaneado). Tipo asumido: ${label}. Revisión manual recomendada.`,
+      observacion: scoreNombre > 0
+        ? `PDF escaneado (sin texto). El nombre del archivo sugiere ${label}. Revisión manual obligatoria.`
+        : `PDF escaneado (sin texto extraíble). Tipo esperado: ${label}. Revisión manual obligatoria.`,
       confianza: "media",
     };
   }
 
-  return _analizarTexto(texto, tipo);
+  return _analizarTexto(texto, tipo, url, nombreArchivo);
 }
 
 // ─── Extracción de texto del PDF (sin dependencias externas) ──────────────────
 function _extraerTextoPDF(buf: Buffer): string {
   const partes: string[] = [];
-
-  // Convertir a latin-1 para leer el PDF como texto
   const raw = buf.toString("latin1");
 
-  // ── Estrategia 1: streams FlateDecode comprimidos ──
-  // Busca los bloques stream...endstream y descomprime con zlib
   const streamRe = /<<([^>]{1,800})>>\s*stream\r?\n([\s\S]*?)\r?\nendstream/g;
   let m: RegExpExecArray | null;
   while ((m = streamRe.exec(raw)) !== null) {
@@ -176,7 +303,6 @@ function _extraerTextoPDF(buf: Buffer): string {
     const data   = m[2];
 
     if (/FlateDecode/i.test(header)) {
-      // Descomprimir con zlib (FlateDecode = zlib/deflate)
       try {
         const compressed = Buffer.from(data, "latin1");
         let decompressed: Buffer | null = null;
@@ -189,41 +315,31 @@ function _extraerTextoPDF(buf: Buffer): string {
         }
       } catch { /* skip stream */ }
     } else if (!/Image|XObject|ObjStm/i.test(header)) {
-      // Stream no comprimido — extraer directamente
       partes.push(_textoDeBloquesPDF(data));
     }
   }
 
-  // ── Estrategia 2: texto directo en BT/ET sin stream ──
   partes.push(_textoDeBloquesPDF(raw));
 
   const resultado = partes.join(" ").replace(/\s+/g, " ").trim();
   return _limpiarTextoPDF(resultado);
 }
 
-// Extrae cadenas de texto de bloques BT...ET de un segmento PDF
 function _textoDeBloquesPDF(contenido: string): string {
   const tokens: string[] = [];
 
-  // Bloques BT (Begin Text) ... ET (End Text)
   const btEt = /BT([\s\S]{1,3000}?)ET/g;
   let m: RegExpExecArray | null;
   while ((m = btEt.exec(contenido)) !== null) {
     const bloque = m[1];
-    // Strings entre paréntesis: (texto aquí)
     const paren = /\(([^)\\]{0,200}(?:\\.[^)\\]{0,200})*)\)/g;
     let pm: RegExpExecArray | null;
     while ((pm = paren.exec(bloque)) !== null) {
       const s = pm[1]
-        .replace(/\\n/g, " ")
-        .replace(/\\r/g, " ")
-        .replace(/\\t/g, " ")
-        .replace(/\\\\/g, "\\")
-        .replace(/\\[()]/g, "")
-        .trim();
+        .replace(/\\n/g, " ").replace(/\\r/g, " ").replace(/\\t/g, " ")
+        .replace(/\\\\/g, "\\").replace(/\\[()]/g, "").trim();
       if (s.length > 1) tokens.push(s);
     }
-    // Arrays de texto: [(str1)(str2)]
     const arr = /\[((?:[^\[\]]*\([^)]*\))*[^\[\]]*)\]/g;
     let am: RegExpExecArray | null;
     while ((am = arr.exec(bloque)) !== null) {
@@ -238,7 +354,6 @@ function _textoDeBloquesPDF(contenido: string): string {
   return tokens.join(" ");
 }
 
-// Limpia artefactos comunes del texto extraído de PDFs
 function _limpiarTextoPDF(texto: string): string {
   return texto
     .replace(/[^\x20-\x7EáéíóúÁÉÍÓÚñÑüÜ\s]/g, " ")
@@ -247,36 +362,67 @@ function _limpiarTextoPDF(texto: string): string {
 }
 
 // ─── Verificación imagen ──────────────────────────────────────────────────────
-function _verificarImagen(mime: string, tipo: TipoDocumento): VerificacionResultado {
+function _verificarImagen(
+  mime: string, tipo: TipoDocumento,
+  url: string, nombreArchivo?: string | null
+): VerificacionResultado {
   const fmt   = mime.split("/")[1]?.toUpperCase() ?? "imagen";
   const label = TIPO_LABELS[tipo];
+  const scoreNombre = _scoreNombre(url, nombreArchivo, tipo);
   return {
-    es_correcto_tipo:            true,
+    es_correcto_tipo:            false,
     esta_vigente:                null,
     fecha_vencimiento_detectada: null,
     nombre_detectado:            null,
-    observacion: `Imagen ${fmt} válida — tipo asumido: ${label}. Verificación manual recomendada.`,
+    observacion: scoreNombre > 0
+      ? `Imagen ${fmt} — el nombre del archivo sugiere ${label}. Verificación manual recomendada.`
+      : `Imagen ${fmt} — tipo esperado: ${label}. Verificación manual recomendada.`,
     confianza: "media",
   };
 }
 
 // ─── Análisis de texto ────────────────────────────────────────────────────────
-function _analizarTexto(texto: string, tipo: TipoDocumento): VerificacionResultado {
+function _analizarTexto(
+  texto: string, tipo: TipoDocumento,
+  url: string, nombreArchivo?: string | null
+): VerificacionResultado {
   const patrones = PATRONES_TIPO[tipo];
   const label    = TIPO_LABELS[tipo];
-  const score    = patrones.filter((p) => p.test(texto)).length;
-  const esCorr   = score >= 1;
+
+  // Score de contenido
+  const scoreContenido = patrones.filter((p) => p.test(texto)).length;
+
+  // Score de nombre de archivo (vale como 1 punto de contenido adicional)
+  const scoreNombre = _scoreNombre(url, nombreArchivo, tipo);
+
+  // Penalización: si hay patrones de otro tipo muy específicos
+  const wrongPatrones = PATRONES_WRONG[tipo] ?? [];
+  const wrongHits = wrongPatrones.filter((p) => p.test(texto)).length;
+  const penalizacion = wrongHits >= 2 ? 2 : wrongHits;
+
+  const scoreTotal = Math.max(0, scoreContenido + scoreNombre - penalizacion);
 
   const [fechaVenc, estaVigente] = _extraerFechaVencimiento(texto);
   const nombre = _extraerNombre(texto);
 
-  let confianza: "alta" | "media" | "baja" = esCorr
-    ? (score >= 2 ? "alta" : "media")
-    : "media";
+  // Determinar si es correcto el tipo
+  const esCorr = scoreTotal >= SCORE_MIN_CORRECTO;
 
-  let obs = esCorr
-    ? `Documento identificado como ${label} (${score} coincidencia${score > 1 ? "s" : ""})`
-    : `No se identificaron palabras clave de ${label} — verifica manualmente`;
+  let confianza: "alta" | "media" | "baja";
+  if (esCorr) {
+    confianza = scoreTotal >= SCORE_ALTA ? "alta" : "media";
+  } else {
+    confianza = scoreContenido === 0 && scoreNombre === 0 ? "baja" : "media";
+  }
+
+  let obs: string;
+  if (esCorr) {
+    obs = `Documento identificado como ${label} (${scoreContenido} coincidencia${scoreContenido !== 1 ? "s" : ""} en contenido${scoreNombre > 0 ? " + nombre de archivo" : ""})`;
+  } else if (scoreContenido > 0 || scoreNombre > 0) {
+    obs = `Coincidencias insuficientes para ${label} (${scoreContenido} en contenido${scoreNombre > 0 ? " + nombre" : ""}${wrongHits > 0 ? `, ${wrongHits} indicador(es) de otro tipo` : ""}) — verifica manualmente`;
+  } else {
+    obs = `No se encontraron palabras clave de ${label}${wrongHits > 0 ? " y se detectaron indicadores de otro tipo de documento" : ""} — verifica manualmente`;
+  }
 
   if (estaVigente === false) {
     obs += " · DOCUMENTO VENCIDO";
@@ -288,16 +434,15 @@ function _analizarTexto(texto: string, tipo: TipoDocumento): VerificacionResulta
     esta_vigente:                estaVigente,
     fecha_vencimiento_detectada: fechaVenc,
     nombre_detectado:            nombre,
-    observacion:                 obs.slice(0, 200),
+    observacion:                 obs.slice(0, 250),
     confianza,
   };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function _detectarMime(url: string, buf: Buffer): string {
-  // Magic bytes primero
   if (buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46)
-    return "application/pdf"; // %PDF
+    return "application/pdf";
   if (buf[0] === 0xff && buf[1] === 0xd8)
     return "image/jpeg";
   if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47)
@@ -305,7 +450,6 @@ function _detectarMime(url: string, buf: Buffer): string {
   if (buf.slice(0,4).toString("ascii") === "RIFF" && buf.slice(8,12).toString("ascii") === "WEBP")
     return "image/webp";
 
-  // Fallback por extensión
   const ext = url.split("?")[0].split(".").pop()?.toLowerCase() ?? "";
   const map: Record<string, string> = {
     pdf:"application/pdf", jpg:"image/jpeg", jpeg:"image/jpeg",
@@ -365,7 +509,7 @@ function _error(observacion: string): VerificacionResultado {
     esta_vigente:                null,
     fecha_vencimiento_detectada: null,
     nombre_detectado:            null,
-    observacion:                 observacion.slice(0, 200),
+    observacion:                 observacion.slice(0, 250),
     confianza:                   "baja",
   };
 }

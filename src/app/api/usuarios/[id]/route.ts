@@ -33,17 +33,18 @@ export async function PATCH(
     return NextResponse.json({ ok: true });
   }
 
-  // Actualizar rol / proveedor_id / full_name
+  // Actualizar rol / proveedor_id / full_name / empresa_grupo
   const profileUpdates: Record<string, unknown> = {};
   if ("proveedor_id" in body) profileUpdates.proveedor_id = body.proveedor_id;
   if ("rol" in body) profileUpdates.rol = body.rol;
   if ("full_name" in body) profileUpdates.full_name = body.full_name;
+  if ("empresa_grupo" in body) profileUpdates.empresa_grupo = body.empresa_grupo ?? null;
 
   const { data, error: upErr } = await admin
     .from("profiles")
     .update(profileUpdates)
     .eq("id", params.id)
-    .select("id, username, full_name, rol, proveedor_id")
+    .select("id, username, full_name, rol, proveedor_id, empresa_grupo")
     .single();
 
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
@@ -63,9 +64,26 @@ export async function DELETE(
   }
 
   const admin = createAdminClient();
+
+  // SET NULL en todas las tablas que referencian auth.users sin ON DELETE CASCADE
+  // (defensa en profundidad: la migración v9 lo hace en BD, esto es un respaldo)
+  await Promise.all([
+    admin.from("proveedores").update({ created_by: null }).eq("created_by", params.id),
+    admin.from("personal").update({ aprobado_por: null }).eq("aprobado_por", params.id),
+    admin.from("grupos_ingreso").update({ creado_por: null }).eq("creado_por", params.id),
+    admin.from("evaluaciones").update({ evaluado_por: null }).eq("evaluado_por", params.id),
+    admin.from("revisiones_checklist").update({ revisado_por: null }).eq("revisado_por", params.id),
+  ]);
+
   const { error: delErr } = await admin.auth.admin.deleteUser(params.id);
   if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
 
-  await logAudit({ user_id: session.user.id, action: "usuario_creado", entity_type: "profiles", entity_id: params.id, metadata: { action: "deleted" } });
+  await logAudit({
+    user_id: session.user.id,
+    action: "usuario_eliminado",
+    entity_type: "profiles",
+    entity_id: params.id,
+    metadata: { action: "deleted" },
+  });
   return NextResponse.json({ ok: true });
 }

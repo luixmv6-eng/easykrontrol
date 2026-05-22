@@ -24,7 +24,15 @@ const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
   suspendido: { label: "Suspendido", cls: "bg-red-100 text-red-600" },
 };
 
-const emptyForm = { nombre: "", nit: "", email: "", telefono: "", direccion: "", representante: "" };
+const EMPRESA_GRUPO_BADGE: Record<string, { label: string; cls: string }> = {
+  castilla: { label: "Castilla", cls: "bg-green-100 text-green-700 border border-green-200" },
+  riopaila: { label: "Riopaila", cls: "bg-red-100   text-red-700   border border-red-200" },
+};
+
+const emptyForm = {
+  nombre: "", nit: "", email: "", telefono: "", direccion: "", representante: "",
+  empresa_grupo: "castilla" as "riopaila" | "castilla",
+};
 
 // ── Panel de usuarios de una empresa ──────────────────
 function UsuariosPanel({ empresa }: { empresa: Proveedor }) {
@@ -270,6 +278,7 @@ export function ProveedoresClient({ proveedores: inicial }: { proveedores: Prove
       telefono: p.telefono ?? "",
       direccion: p.direccion ?? "",
       representante: p.representante ?? "",
+      empresa_grupo: p.empresa_grupo ?? "castilla",
     });
     setError("");
     setShowForm(true);
@@ -464,6 +473,32 @@ export function ProveedoresClient({ proveedores: inicial }: { proveedores: Prove
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400"
                 />
               </div>
+
+              {/* Empresa grupo (tenant) */}
+              <div className="md:col-span-2">
+                <label className="block text-[12px] font-medium text-gray-600 mb-1.5">
+                  Pertenece a *
+                </label>
+                <div className="flex gap-3">
+                  {(["castilla", "riopaila"] as const).map((eg) => (
+                    <button
+                      key={eg}
+                      type="button"
+                      onClick={() => setForm({ ...form, empresa_grupo: eg })}
+                      className={clsx(
+                        "flex-1 py-2.5 rounded-xl border-2 text-[13px] font-semibold transition-colors capitalize",
+                        form.empresa_grupo === eg
+                          ? eg === "castilla"
+                            ? "border-green-500 bg-green-50 text-green-700"
+                            : "border-red-500 bg-red-50 text-red-700"
+                          : "border-gray-200 text-gray-400 hover:border-gray-300"
+                      )}
+                    >
+                      {eg === "castilla" ? "🌿 Castilla" : "🔴 Riopaila"}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {error && (
@@ -522,7 +557,16 @@ export function ProveedoresClient({ proveedores: inicial }: { proveedores: Prove
                     <p className="text-[12px] text-gray-400">NIT: {p.nit}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  {/* Badge tenant */}
+                  {p.empresa_grupo && (
+                    <span className={clsx(
+                      "text-[10px] font-bold px-2 py-0.5 rounded-full capitalize hidden sm:inline-block",
+                      EMPRESA_GRUPO_BADGE[p.empresa_grupo]?.cls ?? "bg-gray-100 text-gray-500"
+                    )}>
+                      {EMPRESA_GRUPO_BADGE[p.empresa_grupo]?.label ?? p.empresa_grupo}
+                    </span>
+                  )}
                   <span className={clsx("text-[11px] font-medium px-2 py-0.5 rounded-full", badge.cls)}>
                     {badge.label}
                   </span>

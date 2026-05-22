@@ -209,6 +209,186 @@ function SSTDocSection({
   );
 }
 
+// ─── EmpresaSelector ─────────────────────────────────
+function EmpresaSelector({ value, onChange, fijo, proveedores, rol }: {
+  value: string; onChange: (v: string) => void; fijo: boolean;
+  proveedores: Proveedor[]; rol: string;
+}) {
+  const emp = proveedores.find((p) => p.id === value) ?? null;
+  if (proveedores.length === 0)
+    return <div className="flex items-center gap-2 border border-amber-200 bg-amber-50 rounded-lg px-3 py-2 text-[12px] text-amber-700"><AlertCircle size={14} />{rol === "admin" ? "No hay empresas activas." : "Sin empresa vinculada."}</div>;
+  if (fijo && emp)
+    return <div className="flex items-center gap-3 border border-ek-200 bg-ek-50 rounded-lg px-4 py-3"><Building2 size={15} className="text-ek-500 shrink-0" /><div><p className="text-[13px] font-semibold text-gray-800">{emp.nombre}</p><p className="text-[12px] text-gray-500">NIT: {emp.nit}</p></div></div>;
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)}
+      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 focus:outline-none focus:ring-2 focus:ring-ek-400" required>
+      <option value="">— Seleccionar empresa —</option>
+      {proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre} · NIT {p.nit}</option>)}
+    </select>
+  );
+}
+
+// ─── SeguridadSocialFields ────────────────────────────
+function SeguridadSocialFields({
+  cargoVal, municipioVal, arlVal, epsVal, afpVal,
+  onCargo, onMunicipio, onArl, onEps, onAfp,
+}: {
+  cargoVal: string; municipioVal: string; arlVal: string; epsVal: string; afpVal: string;
+  onCargo: (v: string) => void; onMunicipio: (v: string) => void;
+  onArl: (v: string) => void; onEps: (v: string) => void; onAfp: (v: string) => void;
+}) {
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-[12px] font-medium text-gray-600 mb-1">Cargo</label>
+          <select value={cargoVal} onChange={(e) => onCargo(e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400">
+            <option value="">— Seleccionar cargo —</option>
+            {CARGOS_CONTRATISTA.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[12px] font-medium text-gray-600 mb-1">Municipio de residencia</label>
+          <input type="text" value={municipioVal} onChange={(e) => onMunicipio(e.target.value)}
+            placeholder="Ej: Cali, Valle del Cauca"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400" />
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <label className="block text-[12px] font-medium text-gray-600 mb-1">ARL</label>
+          <select value={arlVal} onChange={(e) => onArl(e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400">
+            <option value="">— ARL —</option>
+            {ARL_OPTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[12px] font-medium text-gray-600 mb-1">EPS</label>
+          <select value={epsVal} onChange={(e) => onEps(e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400">
+            <option value="">— EPS —</option>
+            {EPS_OPTIONS.map((ep) => <option key={ep} value={ep}>{ep}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[12px] font-medium text-gray-600 mb-1">AFP</label>
+          <select value={afpVal} onChange={(e) => onAfp(e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400">
+            <option value="">— AFP —</option>
+            {AFP_OPTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── VehiculoFields ───────────────────────────────────
+function VehiculoFields({
+  vData, vDocs, prefix, tieneVehiculo, onToggle,
+  onSetVData, onSetVDoc, onError, onDocRef,
+}: {
+  vData: VehiculoData; vDocs: VehiculoDocState; prefix: string;
+  tieneVehiculo: boolean; onToggle: () => void;
+  onSetVData: (p: Partial<VehiculoData>) => void;
+  onSetVDoc: (tipo: "soat" | "tecnicomecanica", p: Partial<DocEntry>) => void;
+  onError: (msg: string) => void;
+  onDocRef?: (tipo: string, el: HTMLInputElement | null) => void;
+}) {
+  const soportes = vData.tipo ? VEHICULOS_SOPORTES[vData.tipo] : null;
+  return (
+    <section className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
+      <button type="button" onClick={onToggle}
+        className="w-full flex items-center justify-between text-[14px] font-semibold text-gray-700">
+        <span className="flex items-center gap-2"><Car size={14} className="text-ek-500" /> Vehículo / Maquinaria (opcional)</span>
+        {tieneVehiculo ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
+      </button>
+      {tieneVehiculo && (
+        <>
+          <p className="text-[12px] text-gray-400">Si el personal ingresa con vehículo o maquinaria, completa estos datos.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[12px] font-medium text-gray-600 mb-1">Tipo de vehículo / maquinaria</label>
+              <select value={vData.tipo} onChange={(e) => onSetVData({ tipo: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400">
+                <option value="">— Seleccionar —</option>
+                {TIPOS_VEHICULO.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[12px] font-medium text-gray-600 mb-1">Placa *</label>
+              <input type="text" value={vData.placa} onChange={(e) => onSetVData({ placa: e.target.value.toUpperCase() })}
+                placeholder="ABC123"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400" />
+            </div>
+            <div>
+              <label className="block text-[12px] font-medium text-gray-600 mb-1">Marca</label>
+              <input type="text" value={vData.marca} onChange={(e) => onSetVData({ marca: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400" />
+            </div>
+            <div>
+              <label className="block text-[12px] font-medium text-gray-600 mb-1">Modelo</label>
+              <input type="text" value={vData.modelo} onChange={(e) => onSetVData({ modelo: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400" />
+            </div>
+            <div>
+              <label className="block text-[12px] font-medium text-gray-600 mb-1">Color</label>
+              <input type="text" value={vData.color} onChange={(e) => onSetVData({ color: e.target.value })}
+                placeholder="Ej: Blanco"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400" />
+            </div>
+            <div>
+              <label className="block text-[12px] font-medium text-gray-600 mb-1">Categoría licencia</label>
+              <select value={vData.categoria_licencia} onChange={(e) => onSetVData({ categoria_licencia: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400">
+                <option value="">— Categoría —</option>
+                {CATEGORIAS_LICENCIA.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className="block text-[12px] font-medium text-gray-600 mb-1">Vencimiento de licencia</label>
+              <input type="date" value={vData.fecha_vencimiento_licencia}
+                onChange={(e) => onSetVData({ fecha_vencimiento_licencia: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400" />
+            </div>
+          </div>
+
+          {soportes && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center gap-2 mb-1.5">
+                <Info size={13} className="text-blue-500 shrink-0" />
+                <p className="text-[12px] font-semibold text-blue-800">Documentos requeridos para {vData.tipo}:</p>
+              </div>
+              <ul className="text-[12px] text-blue-700 list-disc ml-5 space-y-0.5">
+                {soportes.soportes.map((s) => <li key={s}>{s}</li>)}
+              </ul>
+              <p className="text-[11px] text-blue-600 mt-1.5">Licencia requerida: <strong>{soportes.licencia}</strong></p>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <p className="text-[12px] font-semibold text-gray-500 uppercase tracking-wide">Documentos del vehículo</p>
+            {DOCS_VEHICULO.map(({ tipo, label, tieneVigencia }) => (
+              <DocItem key={`${prefix}-${tipo}`} tipo={tipo} label={label} tieneVigencia={tieneVigencia}
+                entry={vDocs[tipo as keyof VehiculoDocState]}
+                onFile={(f) => onSetVDoc(tipo as "soat" | "tecnicomecanica", { file: f })}
+                onFecha={(v) => onSetVDoc(tipo as "soat" | "tecnicomecanica", { fecha_inicio_vigencia: v })}
+                inputRef={(el) => { onDocRef?.(tipo, el); }}
+                onError={onError}
+              />
+            ))}
+          </div>
+          <p className="text-[11px] text-gray-400">
+            La vigencia del vehículo se tomará de las fechas de entrada y fin del personal asociado.
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────
 export default function RegistroPersonalForm({ proveedores, rol, proveedorIdFijo }: Props) {
   const supabase = createClient();
@@ -432,182 +612,6 @@ export default function RegistroPersonalForm({ proveedores, rol, proveedorIdFijo
     } finally { setLoading(false); setProgress(""); }
   };
 
-  // ── Selector empresa ───────────────────────────────
-  function EmpresaSelector({ value, onChange, fijo }: { value: string; onChange: (v: string) => void; fijo: boolean }) {
-    const emp = proveedores.find((p) => p.id === value) ?? null;
-    if (proveedores.length === 0)
-      return <div className="flex items-center gap-2 border border-amber-200 bg-amber-50 rounded-lg px-3 py-2 text-[12px] text-amber-700"><AlertCircle size={14} />{rol === "admin" ? "No hay empresas activas." : "Sin empresa vinculada."}</div>;
-    if (fijo && emp)
-      return <div className="flex items-center gap-3 border border-ek-200 bg-ek-50 rounded-lg px-4 py-3"><Building2 size={15} className="text-ek-500 shrink-0" /><div><p className="text-[13px] font-semibold text-gray-800">{emp.nombre}</p><p className="text-[12px] text-gray-500">NIT: {emp.nit}</p></div></div>;
-    return (
-      <select value={value} onChange={(e) => onChange(e.target.value)}
-        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 focus:outline-none focus:ring-2 focus:ring-ek-400" required>
-        <option value="">— Seleccionar empresa —</option>
-        {proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre} · NIT {p.nit}</option>)}
-      </select>
-    );
-  }
-
-  // ── Seguridad social (reutilizable) ────────────────
-  function SeguridadSocialFields({
-    cargoVal, municipioVal, arlVal, epsVal, afpVal,
-    onCargo, onMunicipio, onArl, onEps, onAfp,
-  }: {
-    cargoVal: string; municipioVal: string; arlVal: string; epsVal: string; afpVal: string;
-    onCargo: (v: string) => void; onMunicipio: (v: string) => void;
-    onArl: (v: string) => void; onEps: (v: string) => void; onAfp: (v: string) => void;
-  }) {
-    return (
-      <>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-[12px] font-medium text-gray-600 mb-1">Cargo</label>
-            <select value={cargoVal} onChange={(e) => onCargo(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400">
-              <option value="">— Seleccionar cargo —</option>
-              {CARGOS_CONTRATISTA.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-[12px] font-medium text-gray-600 mb-1">Municipio de residencia</label>
-            <input type="text" value={municipioVal} onChange={(e) => onMunicipio(e.target.value)}
-              placeholder="Ej: Cali, Valle del Cauca"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400" />
-          </div>
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="block text-[12px] font-medium text-gray-600 mb-1">ARL</label>
-            <select value={arlVal} onChange={(e) => onArl(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400">
-              <option value="">— ARL —</option>
-              {ARL_OPTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-[12px] font-medium text-gray-600 mb-1">EPS</label>
-            <select value={epsVal} onChange={(e) => onEps(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400">
-              <option value="">— EPS —</option>
-              {EPS_OPTIONS.map((ep) => <option key={ep} value={ep}>{ep}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-[12px] font-medium text-gray-600 mb-1">AFP</label>
-            <select value={afpVal} onChange={(e) => onAfp(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400">
-              <option value="">— AFP —</option>
-              {AFP_OPTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
-            </select>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  // ── Sección vehículo (reutilizable) ────────────────
-  function VehiculoFields({
-    vData, vDocs, prefix, tieneVehiculo, onToggle,
-    onSetVData, onSetVDoc, onError,
-  }: {
-    vData: VehiculoData; vDocs: VehiculoDocState; prefix: string;
-    tieneVehiculo: boolean; onToggle: () => void;
-    onSetVData: (p: Partial<VehiculoData>) => void;
-    onSetVDoc: (tipo: "soat" | "tecnicomecanica", p: Partial<DocEntry>) => void;
-    onError: (msg: string) => void;
-  }) {
-    const soportes = vData.tipo ? VEHICULOS_SOPORTES[vData.tipo] : null;
-    return (
-      <section className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
-        <button type="button" onClick={onToggle}
-          className="w-full flex items-center justify-between text-[14px] font-semibold text-gray-700">
-          <span className="flex items-center gap-2"><Car size={14} className="text-ek-500" /> Vehículo / Maquinaria (opcional)</span>
-          {tieneVehiculo ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
-        </button>
-        {tieneVehiculo && (
-          <>
-            <p className="text-[12px] text-gray-400">Si el personal ingresa con vehículo o maquinaria, completa estos datos.</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[12px] font-medium text-gray-600 mb-1">Tipo de vehículo / maquinaria</label>
-                <select value={vData.tipo} onChange={(e) => onSetVData({ tipo: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400">
-                  <option value="">— Seleccionar —</option>
-                  {TIPOS_VEHICULO.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[12px] font-medium text-gray-600 mb-1">Placa *</label>
-                <input type="text" value={vData.placa} onChange={(e) => onSetVData({ placa: e.target.value.toUpperCase() })}
-                  placeholder="ABC123"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400" />
-              </div>
-              <div>
-                <label className="block text-[12px] font-medium text-gray-600 mb-1">Marca</label>
-                <input type="text" value={vData.marca} onChange={(e) => onSetVData({ marca: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400" />
-              </div>
-              <div>
-                <label className="block text-[12px] font-medium text-gray-600 mb-1">Modelo</label>
-                <input type="text" value={vData.modelo} onChange={(e) => onSetVData({ modelo: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400" />
-              </div>
-              <div>
-                <label className="block text-[12px] font-medium text-gray-600 mb-1">Color</label>
-                <input type="text" value={vData.color} onChange={(e) => onSetVData({ color: e.target.value })}
-                  placeholder="Ej: Blanco"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400" />
-              </div>
-              <div>
-                <label className="block text-[12px] font-medium text-gray-600 mb-1">Categoría licencia</label>
-                <select value={vData.categoria_licencia} onChange={(e) => onSetVData({ categoria_licencia: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400">
-                  <option value="">— Categoría —</option>
-                  {CATEGORIAS_LICENCIA.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div className="col-span-2">
-                <label className="block text-[12px] font-medium text-gray-600 mb-1">Vencimiento de licencia</label>
-                <input type="date" value={vData.fecha_vencimiento_licencia}
-                  onChange={(e) => onSetVData({ fecha_vencimiento_licencia: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-ek-400" />
-              </div>
-            </div>
-
-            {soportes && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Info size={13} className="text-blue-500 shrink-0" />
-                  <p className="text-[12px] font-semibold text-blue-800">Documentos requeridos para {vData.tipo}:</p>
-                </div>
-                <ul className="text-[12px] text-blue-700 list-disc ml-5 space-y-0.5">
-                  {soportes.soportes.map((s) => <li key={s}>{s}</li>)}
-                </ul>
-                <p className="text-[11px] text-blue-600 mt-1.5">Licencia requerida: <strong>{soportes.licencia}</strong></p>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <p className="text-[12px] font-semibold text-gray-500 uppercase tracking-wide">Documentos del vehículo</p>
-              {DOCS_VEHICULO.map(({ tipo, label, tieneVigencia }) => (
-                <DocItem key={`${prefix}-${tipo}`} tipo={tipo} label={label} tieneVigencia={tieneVigencia}
-                  entry={vDocs[tipo as keyof VehiculoDocState]}
-                  onFile={(f) => onSetVDoc(tipo as "soat" | "tecnicomecanica", { file: f })}
-                  onFecha={(v) => onSetVDoc(tipo as "soat" | "tecnicomecanica", { fecha_inicio_vigencia: v })}
-                  inputRef={(el) => { if (prefix === "ind") indFileRefs.current[tipo] = el; }}
-                  onError={onError}
-                />
-              ))}
-            </div>
-            <p className="text-[11px] text-gray-400">
-              La vigencia del vehículo se tomará de las fechas de entrada y fin del personal asociado.
-            </p>
-          </>
-        )}
-      </section>
-    );
-  }
-
   if (success) {
     return (
       <div className="max-w-lg mx-auto mt-16 text-center space-y-4">
@@ -668,7 +672,7 @@ export default function RegistroPersonalForm({ proveedores, rol, proveedorIdFijo
             </h2>
             <div>
               <label className="block text-[12px] font-medium text-gray-600 mb-1">Empresa / Proveedor *</label>
-              <EmpresaSelector value={proveedor_id} onChange={setProveedorId} fijo={!!proveedorIdFijo} />
+              <EmpresaSelector value={proveedor_id} onChange={setProveedorId} fijo={!!proveedorIdFijo} proveedores={proveedores} rol={rol} />
             </div>
             <div>
               <label className="block text-[12px] font-medium text-gray-600 mb-1">Actividad a realizar *</label>
@@ -748,6 +752,7 @@ export default function RegistroPersonalForm({ proveedores, rol, proveedorIdFijo
             onSetVData={(p) => setVehiculoData((prev) => ({ ...prev, ...p }))}
             onSetVDoc={(tipo, p) => setVehiculoDocs((prev) => ({ ...prev, [tipo]: { ...prev[tipo], ...p } }))}
             onError={setError}
+            onDocRef={(tipo, el) => { indFileRefs.current[tipo] = el; }}
           />
 
           {error && <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-3"><AlertCircle size={15} className="text-red-500 shrink-0 mt-0.5" /><p className="text-[12.5px] text-red-600">{error}</p></div>}
@@ -768,7 +773,7 @@ export default function RegistroPersonalForm({ proveedores, rol, proveedorIdFijo
             </h2>
             <div>
               <label className="block text-[12px] font-medium text-gray-600 mb-1">Empresa *</label>
-              <EmpresaSelector value={grupoProv} onChange={setGrupoProv} fijo={!!proveedorIdFijo} />
+              <EmpresaSelector value={grupoProv} onChange={setGrupoProv} fijo={!!proveedorIdFijo} proveedores={proveedores} rol={rol} />
             </div>
             <div>
               <label className="block text-[12px] font-medium text-gray-600 mb-1">Nombre del grupo / referencia *</label>

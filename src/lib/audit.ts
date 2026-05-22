@@ -13,7 +13,9 @@ export type AuditAction =
   | "proveedor_creado"
   | "proveedor_actualizado"
   | "evaluacion_creada"
-  | "evaluacion_actualizada";
+  | "evaluacion_actualizada"
+  | "usuario_eliminado"
+  | "proveedor_eliminado";
 
 interface AuditParams {
   user_id: string;

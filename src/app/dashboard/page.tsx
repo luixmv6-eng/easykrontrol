@@ -12,21 +12,81 @@ export default async function DashboardPage() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) redirect("/login");
 
-  const { data: profile } = await supabase.from("profiles").select("rol").eq("id", session.user.id).single();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("rol, empresa_grupo")
+    .eq("id", session.user.id)
+    .single();
   const esAdmin = profile?.rol === "admin";
+  const empresaGrupo = profile?.empresa_grupo ?? null;
 
-  const [{ data: kpisData }, { data: mesData }, { data: actividadesData }] = await Promise.all([
-    supabase.rpc("get_dashboard_kpis"),
-    supabase
-      .from("personal")
-      .select("created_at")
-      .gte("created_at", new Date(Date.now() - 180 * 86400000).toISOString()),
-    supabase
-      .from("personal")
-      .select("actividad_a_realizar")
-      .neq("estado", "inactivo")
-      .not("actividad_a_realizar", "is", null),
-  ]);
+  const sixMonthsAgo = new Date(Date.now() - 180 * 86400000).toISOString();
+
+  let kpisData: Omit<DashboardKPIs, "actividades_distintas"> | null;
+  let mesData: { created_at: string }[] | null;
+  let actividadesData: { actividad_a_realizar: string | null }[] | null;
+
+  if (esAdmin && empresaGrupo) {
+    // Admin con empresa específica: calcular KPIs filtrando por sus proveedores
+    const { data: pData } = await supabase
+      .from("proveedores")
+      .select("id")
+      .eq("empresa_grupo", empresaGrupo);
+    const pIds = (pData ?? []).map((p: { id: string }) => p.id);
+
+    if (pIds.length === 0) {
+      kpisData = {
+        total_personal: 0, personal_aprobado: 0, personal_pendiente: 0, personal_rechazado: 0,
+        personal_en_correccion: 0, grupos_pendientes: 0, vehiculos_activos: 0,
+        proveedores_activos: 0, documentos_por_vencer: 0, personal_historial: 0,
+      };
+      mesData = [];
+      actividadesData = [];
+    } else {
+      const [
+        totRes, aprobRes, pendRes, rechRes, corrRes,
+        gruposRes, vehRes, provRes, docsRes, histRes,
+        mesRes, activRes,
+      ] = await Promise.all([
+        supabase.from("personal").select("*", { count: "exact", head: true }).in("proveedor_id", pIds).neq("estado", "inactivo"),
+        supabase.from("personal").select("*", { count: "exact", head: true }).in("proveedor_id", pIds).eq("estado", "aprobado"),
+        supabase.from("personal").select("*", { count: "exact", head: true }).in("proveedor_id", pIds).eq("estado", "pendiente").eq("en_correccion", false).is("grupo_id", null),
+        supabase.from("personal").select("*", { count: "exact", head: true }).in("proveedor_id", pIds).eq("estado", "rechazado"),
+        supabase.from("personal").select("*", { count: "exact", head: true }).in("proveedor_id", pIds).eq("en_correccion", true),
+        supabase.from("grupos_ingreso").select("*", { count: "exact", head: true }).in("proveedor_id", pIds).eq("estado", "pendiente"),
+        supabase.from("vehiculos").select("*", { count: "exact", head: true }).in("proveedor_id", pIds).eq("estado", "activo"),
+        supabase.from("proveedores").select("*", { count: "exact", head: true }).eq("empresa_grupo", empresaGrupo).eq("estado", "activo"),
+        supabase.from("documentos_por_vencer").select("*", { count: "exact", head: true }).in("proveedor_id", pIds),
+        supabase.from("personal").select("*", { count: "exact", head: true }).in("proveedor_id", pIds).eq("estado", "inactivo"),
+        supabase.from("personal").select("created_at").in("proveedor_id", pIds).gte("created_at", sixMonthsAgo),
+        supabase.from("personal").select("actividad_a_realizar").in("proveedor_id", pIds).neq("estado", "inactivo").not("actividad_a_realizar", "is", null),
+      ]);
+      kpisData = {
+        total_personal: totRes.count ?? 0,
+        personal_aprobado: aprobRes.count ?? 0,
+        personal_pendiente: pendRes.count ?? 0,
+        personal_rechazado: rechRes.count ?? 0,
+        personal_en_correccion: corrRes.count ?? 0,
+        grupos_pendientes: gruposRes.count ?? 0,
+        vehiculos_activos: vehRes.count ?? 0,
+        proveedores_activos: provRes.count ?? 0,
+        documentos_por_vencer: docsRes.count ?? 0,
+        personal_historial: histRes.count ?? 0,
+      };
+      mesData = mesRes.data ?? [];
+      actividadesData = activRes.data ?? [];
+    }
+  } else {
+    // Super admin (empresa_grupo=null) o proveedor: comportamiento existente
+    const [kpisRes, mesRes, activRes] = await Promise.all([
+      supabase.rpc("get_dashboard_kpis"),
+      supabase.from("personal").select("created_at").gte("created_at", sixMonthsAgo),
+      supabase.from("personal").select("actividad_a_realizar").neq("estado", "inactivo").not("actividad_a_realizar", "is", null),
+    ]);
+    kpisData = kpisRes.data;
+    mesData = mesRes.data;
+    actividadesData = activRes.data;
+  }
 
   const actividadesDistintas = new Set(
     (actividadesData ?? []).map((p) => p.actividad_a_realizar).filter(Boolean)

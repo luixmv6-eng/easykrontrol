@@ -10,16 +10,55 @@
 @tailwind utilities;
 
 /* ── Variables CSS globales ──────────────────────────── */
-:root {
-  /* Colores corporativos Easy Kontrol */
-  --color-ek-primary:   #7ab648;
-  --color-ek-dark:      #5a9030;
-  --color-ek-light:     #a5d468;
-  --color-ek-bg:        #f0f7e8;
 
-  /* Tipografía */
-  --font-nunito: 'Nunito', sans-serif;
+/* ── Castilla (verde) — tema por defecto ── */
+:root,
+[data-tenant="castilla"] {
+  /* Paleta ek-* en formato R G B (para Tailwind opacity modifiers) */
+  --ek-50:  240 247 232;
+  --ek-100: 216 237 190;
+  --ek-200: 190 226 148;
+  --ek-300: 165 212 104;
+  --ek-400: 140 200 68;
+  --ek-500: 122 182 72;
+  --ek-600: 90  144 48;
+  --ek-700: 63  107 34;
+  --ek-800: 39  70  20;
+  --ek-900: 19  35  8;
+
+  /* Aliases semánticos (usados en scrollbar, focus, etc.) */
+  --color-ek-primary: #7ab648;
+  --color-ek-dark:    #5a9030;
+  --color-ek-light:   #a5d468;
+  --color-ek-bg:      #f0f7e8;
+
+  /* Nombre del tenant para UI */
+  --tenant-nombre:    "Castilla";
 }
+
+/* ── Riopaila (rojo) ── */
+[data-tenant="riopaila"] {
+  --ek-50:  255 241 242;
+  --ek-100: 255 228 230;
+  --ek-200: 254 205 211;
+  --ek-300: 253 164 175;
+  --ek-400: 251 113 133;
+  --ek-500: 225 29  72;
+  --ek-600: 190 18  60;
+  --ek-700: 159 18  57;
+  --ek-800: 136 19  55;
+  --ek-900: 100 10  40;
+
+  --color-ek-primary: #e11d48;
+  --color-ek-dark:    #be123c;
+  --color-ek-light:   #fda4af;
+  --color-ek-bg:      #fff1f2;
+
+  --tenant-nombre:    "Riopaila";
+}
+
+/* Tipografía */
+:root { --font-nunito: 'Nunito', sans-serif; }
 
 /* ── Reset base ──────────────────────────────────────── */
 *,
